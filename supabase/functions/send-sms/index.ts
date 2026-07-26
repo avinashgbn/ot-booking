@@ -87,7 +87,7 @@ Deno.serve(async (req: Request) => {
       // Look up user by token to get name and practice
       const { data: user } = await supabase
         .from('users')
-        .select('full_name, role, practice_id, practices!inner(name)')
+        .select('full_name, role, practice_id, practices!users_practice_id_fkey!inner(name)')
         .eq('invite_token', token)
         .maybeSingle();
 
