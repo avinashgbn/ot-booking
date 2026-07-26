@@ -38,6 +38,14 @@ export interface User {
   created_at: string;
 }
 
+export interface PracticeSurgeon {
+  id: string;
+  practice_id: string;
+  surgeon_id: string;
+  created_at: string;
+  surgeon?: User;
+}
+
 export interface Anaesthetist {
   id: string;
   full_name: string;

@@ -35,13 +35,25 @@ export function NewBookingPage() {
 
   const loadSurgeons = useCallback(async () => {
     if (!user?.practice_id) return;
-    const { data } = await supabase
+    const { data: homeSurgeons } = await supabase
       .from('users')
       .select('*')
       .eq('practice_id', user.practice_id)
       .eq('role', 'surgeon')
       .order('full_name');
-    setSurgeons((data || []) as User[]);
+
+    const { data: linked } = await supabase
+      .from('practice_surgeons')
+      .select('surgeon:users!practice_surgeons_surgeon_id_fkey(*)')
+      .eq('practice_id', user.practice_id);
+
+    const linkedSurgeons = (linked || [])
+      .map((l) => (l as unknown as { surgeon: User }).surgeon)
+      .filter(Boolean);
+
+    const merged = [...((homeSurgeons || []) as User[]), ...linkedSurgeons]
+      .sort((a, b) => a.full_name.localeCompare(b.full_name));
+    setSurgeons(merged);
   }, [user]);
 
   const loadAnaesthetists = useCallback(async () => {

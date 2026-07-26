@@ -65,7 +65,19 @@ export function DashboardPage() {
       .eq('practice_id', user.practice_id)
       .eq('role', 'surgeon')
       .order('full_name', { ascending: true });
-    setSurgeons((surgeonsData || []) as User[]);
+
+    const { data: linkedData } = await supabase
+      .from('practice_surgeons')
+      .select('surgeon:users!practice_surgeons_surgeon_id_fkey(*)')
+      .eq('practice_id', user.practice_id);
+
+    const linkedSurgeons = (linkedData || [])
+      .map((l) => (l as unknown as { surgeon: User }).surgeon)
+      .filter(Boolean);
+
+    const mergedSurgeons = [...((surgeonsData || []) as User[]), ...linkedSurgeons]
+      .sort((a, b) => a.full_name.localeCompare(b.full_name));
+    setSurgeons(mergedSurgeons);
 
     const { data: pData } = await supabase
       .from('practices')
