@@ -65,7 +65,7 @@ function anaesthesiaLabel(pref: string): string {
 
 async function sendCaseRequest(supabase: any, booking: any, anaesthetist: any, windowMinutes: number): Promise<void> {
   const anaesPrefs = (booking.anaesthesia_preferences || []).map(anaesthesiaLabel).join(' or ');
-  const body = `You have a case request:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nDate: ${formatDate(booking.surgery_date)} \u00B7 ${formatTime(booking.surgery_time)} (${booking.duration_hours} hrs)\nLocation: ${booking.ot_location}\nSurgeon: Dr ${booking.surgeon?.full_name || 'Unknown'}\nAnaesthesia: ${anaesPrefs}\n\nReply 1 to ACCEPT\nReply 2 to DECLINE\n\nReply within ${windowMinutes} minutes.`;
+  const body = `You have a case request:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nDate: ${formatDate(booking.surgery_date)} - ${formatTime(booking.surgery_time)} (${booking.duration_hours} hrs)\nLocation: ${booking.ot_location}\nSurgeon: Dr ${booking.surgeon?.full_name || 'Unknown'}\nAnaesthesia: ${anaesPrefs}\n\nReply 1 to ACCEPT\nReply 2 to DECLINE\n\nReply within ${windowMinutes} minutes.`;
 
   const sent = await sendTwilioSms(anaesthetist.phone, body);
 
@@ -84,7 +84,7 @@ async function sendCaseRequest(supabase: any, booking: any, anaesthetist: any, w
 
 async function sendConfirmationSms(supabase: any, booking: any, anaesthetist: any): Promise<void> {
   const anaesPrefs = (booking.anaesthesia_preferences || []).map(anaesthesiaLabel).join(', ');
-  const body = `Dear Dr ${anaesthetist.full_name},\n\nYou are confirmed for ${booking.patient_initials}'s case — ${booking.procedure} on ${formatDate(booking.surgery_date)} at ${formatTime(booking.surgery_time)} for ${booking.duration_hours} hrs at ${booking.ot_location}.\n\nAnaesthesia: ${anaesPrefs}.\n\nContact ${booking.secretary_phone} if you have any queries.`;
+  const body = `Dear Dr ${anaesthetist.full_name},\n\nYou are confirmed for ${booking.patient_initials}'s case - ${booking.procedure} on ${formatDate(booking.surgery_date)} at ${formatTime(booking.surgery_time)} for ${booking.duration_hours} hrs at ${booking.ot_location}.\n\nAnaesthesia: ${anaesPrefs}.\n\nContact ${booking.secretary_phone} if you have any queries.`;
 
   const sent = await sendTwilioSms(anaesthetist.phone, body);
 
@@ -102,7 +102,7 @@ async function sendConfirmationSms(supabase: any, booking: any, anaesthetist: an
 }
 
 async function sendReleaseSms(supabase: any, booking: any, anaesthetist: any): Promise<void> {
-  const body = `Hi Dr ${anaesthetist.full_name}, this case (${booking.patient_initials} \u00B7 ${booking.procedure} on ${formatDate(booking.surgery_date)}) has been filled by another anaesthetist. Thank you for your availability.`;
+  const body = `Hi Dr ${anaesthetist.full_name}, this case (${booking.patient_initials} - ${booking.procedure} on ${formatDate(booking.surgery_date)}) has been filled by another anaesthetist. Thank you for your availability.`;
 
   const sent = await sendTwilioSms(anaesthetist.phone, body);
 
@@ -248,7 +248,7 @@ async function checkExpirations(supabase: any): Promise<void> {
   if (unackBookings) {
     for (const booking of unackBookings) {
       if (booking.confirmed_anaesthetist && booking.secretary_phone) {
-        const alertBody = `\u26A0\uFE0F Dr ${booking.confirmed_anaesthetist.full_name} has not acknowledged the cancellation of ${booking.patient_initials} on ${formatDate(booking.surgery_date)}. Please call them directly: ${booking.confirmed_anaesthetist.phone}`;
+        const alertBody = `ALERT: Dr ${booking.confirmed_anaesthetist.full_name} has not acknowledged the cancellation of ${booking.patient_initials} on ${formatDate(booking.surgery_date)}. Please call them directly: ${booking.confirmed_anaesthetist.phone}`;
         await sendTwilioSms(booking.secretary_phone, alertBody);
       }
     }

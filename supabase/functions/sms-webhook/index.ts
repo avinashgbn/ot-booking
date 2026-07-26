@@ -61,7 +61,7 @@ function anaesthesiaLabel(pref: string): string {
 
 async function sendConfirmationSms(supabase: any, booking: any, anaesthetist: any): Promise<void> {
   const anaesPrefs = (booking.anaesthesia_preferences || []).map(anaesthesiaLabel).join(', ');
-  const body = `Dear Dr ${anaesthetist.full_name},\n\nYou are confirmed for ${booking.patient_initials}'s case — ${booking.procedure} on ${formatDate(booking.surgery_date)} at ${formatTime(booking.surgery_time)} for ${booking.duration_hours} hrs at ${booking.ot_location}.\n\nAnaesthesia: ${anaesPrefs}.\n\nContact ${booking.secretary_phone} if you have any queries.`;
+  const body = `Dear Dr ${anaesthetist.full_name},\n\nYou are confirmed for ${booking.patient_initials}'s case - ${booking.procedure} on ${formatDate(booking.surgery_date)} at ${formatTime(booking.surgery_time)} for ${booking.duration_hours} hrs at ${booking.ot_location}.\n\nAnaesthesia: ${anaesPrefs}.\n\nContact ${booking.secretary_phone} if you have any queries.`;
 
   const sent = await sendTwilioSms(anaesthetist.phone, body);
   if (sent) {
@@ -78,7 +78,7 @@ async function sendConfirmationSms(supabase: any, booking: any, anaesthetist: an
 }
 
 async function sendReleaseSms(supabase: any, booking: any, anaesthetist: any): Promise<void> {
-  const body = `Hi Dr ${anaesthetist.full_name}, this case (${booking.patient_initials} \u00B7 ${booking.procedure} on ${formatDate(booking.surgery_date)}) has been filled by another anaesthetist. Thank you for your availability.`;
+  const body = `Hi Dr ${anaesthetist.full_name}, this case (${booking.patient_initials} - ${booking.procedure} on ${formatDate(booking.surgery_date)}) has been filled by another anaesthetist. Thank you for your availability.`;
   const sent = await sendTwilioSms(anaesthetist.phone, body);
   if (sent) {
     await supabase.from('sms_log').insert({
@@ -303,7 +303,7 @@ Deno.serve(async (req: Request) => {
 
           // Send case request to next anaesthetist
           const anaesPrefs = (booking.anaesthesia_preferences || []).map(anaesthesiaLabel).join(' or ');
-          const reqBody = `You have a case request:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nDate: ${formatDate(booking.surgery_date)} \u00B7 ${formatTime(booking.surgery_time)} (${booking.duration_hours} hrs)\nLocation: ${booking.ot_location}\nSurgeon: Dr ${booking.surgeon?.full_name || 'Unknown'}\nAnaesthesia: ${anaesPrefs}\n\nReply 1 to ACCEPT\nReply 2 to DECLINE\n\nReply within 5 minutes.`;
+          const reqBody = `You have a case request:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nDate: ${formatDate(booking.surgery_date)} - ${formatTime(booking.surgery_time)} (${booking.duration_hours} hrs)\nLocation: ${booking.ot_location}\nSurgeon: Dr ${booking.surgeon?.full_name || 'Unknown'}\nAnaesthesia: ${anaesPrefs}\n\nReply 1 to ACCEPT\nReply 2 to DECLINE\n\nReply within 5 minutes.`;
 
           const sent = await sendTwilioSms(nextStep.anaesthetist.phone, reqBody);
           if (sent) {
