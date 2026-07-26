@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
       }
 
       const anaesPrefs = (booking.anaesthesia_preferences || []).map(anaesthesiaLabel).join(', ');
-      const body = `Dear Dr ${booking.confirmed_anaesthetist.full_name},\n\nYou are confirmed for ${booking.patient_initials}'s case — ${booking.procedure} on ${formatDate(booking.surgery_date)} at ${formatTime(booking.surgery_time)} for ${booking.duration_hours} hrs at ${booking.ot_location}.\n\nAnaesthesia: ${anaesPrefs}.\n\nContact ${booking.secretary_phone} if you have any queries.`;
+      const body = `Dear Dr ${booking.confirmed_anaesthetist.full_name},\n\nYou are confirmed for ${booking.patient_initials}'s case - ${booking.procedure} on ${formatDate(booking.surgery_date)} at ${formatTime(booking.surgery_time)} for ${booking.duration_hours} hrs at ${booking.ot_location}.\n\nAnaesthesia: ${anaesPrefs}.\n\nContact ${booking.secretary_phone} if you have any queries.`;
 
       const sent = await sendTwilioSms(booking.confirmed_anaesthetist.phone, body);
 
@@ -179,7 +179,7 @@ Deno.serve(async (req: Request) => {
 
       // Send to confirmed anaesthetist
       if (booking.confirmed_anaesthetist) {
-        const anaesBody = `\u26A0\uFE0F CASE CANCELLED\n\nDear Dr ${booking.confirmed_anaesthetist.full_name},\n\nThe following confirmed case has been cancelled:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nDate: ${formatDate(booking.surgery_date)} \u00B7 ${formatTime(booking.surgery_time)}\nLocation: ${booking.ot_location}\n\nReason: ${booking.cancel_reason}\n\nWe apologise for the inconvenience. For queries contact ${booking.secretary_phone}.\n\nReply 1 to acknowledge this cancellation.`;
+        const anaesBody = `ALERT: CASE CANCELLED\n\nDear Dr ${booking.confirmed_anaesthetist.full_name},\n\nThe following confirmed case has been cancelled:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nDate: ${formatDate(booking.surgery_date)} - ${formatTime(booking.surgery_time)}\nLocation: ${booking.ot_location}\n\nReason: ${booking.cancel_reason}\n\nWe apologise for the inconvenience. For queries contact ${booking.secretary_phone}.\n\nReply 1 to acknowledge this cancellation.`;
 
         const sent = await sendTwilioSms(booking.confirmed_anaesthetist.phone, anaesBody);
         if (!sent) success = false;
@@ -199,7 +199,7 @@ Deno.serve(async (req: Request) => {
 
       // Send to surgeon
       if (booking.surgeon) {
-        const surgeonBody = `\u26A0\uFE0F CASE CANCELLED\n\nDear Dr ${booking.surgeon.full_name},\n\nThe following case has been cancelled:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nDate: ${formatDate(booking.surgery_date)} \u00B7 ${formatTime(booking.surgery_time)}\nLocation: ${booking.ot_location}\n\nReason: ${booking.cancel_reason}\n\n${booking.confirmed_anaesthetist ? booking.confirmed_anaesthetist.full_name + ' has been notified. ' : ''}Please contact your secretary for further information.`;
+        const surgeonBody = `ALERT: CASE CANCELLED\n\nDear Dr ${booking.surgeon.full_name},\n\nThe following case has been cancelled:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nDate: ${formatDate(booking.surgery_date)} - ${formatTime(booking.surgery_time)}\nLocation: ${booking.ot_location}\n\nReason: ${booking.cancel_reason}\n\n${booking.confirmed_anaesthetist ? booking.confirmed_anaesthetist.full_name + ' has been notified. ' : ''}Please contact your secretary for further information.`;
 
         const sent = await sendTwilioSms(booking.surgeon.phone, surgeonBody);
         if (!sent) success = false;
@@ -228,7 +228,7 @@ Deno.serve(async (req: Request) => {
 
       if (pendingSteps) {
         for (const step of pendingSteps) {
-          const releaseBody = `Hi Dr ${step.anaesthetist?.full_name}, this case (${booking.patient_initials} \u00B7 ${booking.procedure} on ${formatDate(booking.surgery_date)}) has been cancelled. Thank you for your availability.`;
+          const releaseBody = `Hi Dr ${step.anaesthetist?.full_name}, this case (${booking.patient_initials} - ${booking.procedure} on ${formatDate(booking.surgery_date)}) has been cancelled. Thank you for your availability.`;
           const sent = await sendTwilioSms(step.anaesthetist?.phone || '', releaseBody);
           if (sent) {
             await supabase.from('cascade_steps').update({ outcome: 'released' }).eq('id', step.id);
