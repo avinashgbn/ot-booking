@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { RoleBadge, SurgeonBadge, AnaesthetistBadge } from '@/components/Badges';
 import { ReorderableList } from '@/components/ReorderableList';
 import { normalisePhone } from '@/lib/utils';
-import type { User, Anaesthetist, AnaesthetistPreference, Practice } from '@/types';
+import type { User, Anaesthetist, AnaesthetistPreference, Practice, PracticeSurgeon } from '@/types';
 import {
   ArrowLeft, Search, Plus, X, Trash2, Send, ShieldAlert
 } from 'lucide-react';
@@ -21,6 +21,7 @@ export function SettingsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [anaesthetists, setAnaesthetists] = useState<Anaesthetist[]>([]);
   const [surgeons, setSurgeons] = useState<User[]>([]);
+  const [linkedSurgeons, setLinkedSurgeons] = useState<User[]>([]);
 
   const loadPractice = useCallback(async () => {
     if (!user?.practice_id) return;
@@ -39,6 +40,18 @@ export function SettingsPage() {
     setSurgeons((data || []).filter((u) => u.role === 'surgeon') as User[]);
   }, [user]);
 
+  const loadLinkedSurgeons = useCallback(async () => {
+    if (!user?.practice_id) return;
+    const { data } = await supabase
+      .from('practice_surgeons')
+      .select('surgeon:users!practice_surgeons_surgeon_id_fkey(*)')
+      .eq('practice_id', user.practice_id);
+    const linked = (data || [])
+      .map((l) => (l as unknown as { surgeon: User }).surgeon)
+      .filter(Boolean);
+    setLinkedSurgeons(linked);
+  }, [user]);
+
   const loadAnaesthetists = useCallback(async () => {
     const { data } = await supabase.from('anaesthetists').select('*').order('full_name');
     setAnaesthetists((data || []) as Anaesthetist[]);
@@ -47,8 +60,9 @@ export function SettingsPage() {
   useEffect(() => {
     loadPractice();
     loadUsers();
+    loadLinkedSurgeons();
     loadAnaesthetists();
-  }, [loadPractice, loadUsers, loadAnaesthetists]);
+  }, [loadPractice, loadUsers, loadLinkedSurgeons, loadAnaesthetists]);
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'practice', label: 'Practice' },
@@ -88,9 +102,17 @@ export function SettingsPage() {
         </div>
 
         {tab === 'practice' && <PracticeTab practice={practice} onUpdate={loadPractice} />}
-        {tab === 'users' && <UsersTab users={users} currentUserId={user?.id || ''} onChanged={loadUsers} />}
+        {tab === 'users' && (
+          <UsersTab
+            users={users}
+            linkedSurgeons={linkedSurgeons}
+            currentUserId={user?.id || ''}
+            practiceId={user?.practice_id || ''}
+            onChanged={async () => { await loadUsers(); await loadLinkedSurgeons(); }}
+          />
+        )}
         {tab === 'directory' && <DirectoryTab anaesthetists={anaesthetists} onChanged={loadAnaesthetists} />}
-        {tab === 'lists' && <ListsTab surgeons={surgeons} anaesthetists={anaesthetists} />}
+        {tab === 'lists' && <ListsTab surgeons={[...surgeons, ...linkedSurgeons]} anaesthetists={anaesthetists} />}
         {tab === 'admin' && user?.role === 'practice_admin' && <AdminTab users={users} currentUserId={user.id} onChanged={loadUsers} />}
         {tab === 'admin' && user?.role !== 'practice_admin' && (
           <p className="text-sm text-gray-400">Admin settings are only available to practice admins.</p>
@@ -139,31 +161,57 @@ function PracticeTab({ practice, onUpdate }: { practice: Practice | null; onUpda
   );
 }
 
-function UsersTab({ users, currentUserId, onChanged }: { users: User[]; currentUserId: string; onChanged: () => void }) {
+function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged }: {
+  users: User[]; linkedSurgeons: User[]; currentUserId: string; practiceId: string; onChanged: () => void | Promise<void>;
+}) {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newRole, setNewRole] = useState<'surgeon' | 'secretary'>('surgeon');
   const [adding, setAdding] = useState(false);
 
-  const handleAdd = async () => {
-    if (!newName.trim() || !newPhone.trim()) { toast.error('Enter name and phone'); return; }
-    setAdding(true);
+  const handleAddSurgeon = async (phone: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/link-surgeon`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token || ''}`,
+      },
+      body: JSON.stringify({ phone, full_name: newName.trim() }),
+    });
+    const result = await res.json();
 
+    if (!res.ok) {
+      toast.error(result.error || 'Failed to add surgeon');
+      return false;
+    }
+
+    if (result.linked) {
+      toast.success(`Dr ${result.surgeon.full_name} linked to this practice — they already have an account elsewhere, so no new invite is needed.`);
+    } else {
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ type: 'invite', token: result.token, phone }),
+      });
+      toast.success('Surgeon added. Invite SMS sent.');
+    }
+    return true;
+  };
+
+  const handleAddSecretary = async (phone: string) => {
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
-    const phone = normalisePhone(newPhone);
-
-    const { data: currentUser } = await supabase.from('users').select('practice_id').eq('id', currentUserId).maybeSingle();
-    const practiceId = currentUser?.practice_id;
-
-    if (!practiceId) { toast.error('No practice found'); setAdding(false); return; }
 
     const { error } = await supabase.from('users').insert({
       practice_id: practiceId,
       full_name: newName.trim(),
       phone,
-      role: newRole,
+      role: 'secretary',
       invite_token: token,
       invite_expires_at: expiresAt,
       active: false,
@@ -171,8 +219,7 @@ function UsersTab({ users, currentUserId, onChanged }: { users: User[]; currentU
 
     if (error) {
       toast.error(error.message.includes('duplicate') ? 'Phone number already registered' : 'Failed to add user');
-      setAdding(false);
-      return;
+      return false;
     }
 
     await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
@@ -184,11 +231,32 @@ function UsersTab({ users, currentUserId, onChanged }: { users: User[]; currentU
       body: JSON.stringify({ type: 'invite', token, phone }),
     });
 
-    toast.success(`${newRole === 'surgeon' ? 'Surgeon' : 'Secretary'} added. Invite SMS sent.`);
-    setNewName('');
-    setNewPhone('');
-    setShowAdd(false);
+    toast.success('Secretary added. Invite SMS sent.');
+    return true;
+  };
+
+  const handleAdd = async () => {
+    if (!newName.trim() || !newPhone.trim()) { toast.error('Enter name and phone'); return; }
+    if (!practiceId) { toast.error('No practice found'); return; }
+    setAdding(true);
+
+    const phone = normalisePhone(newPhone);
+    const ok = newRole === 'surgeon' ? await handleAddSurgeon(phone) : await handleAddSecretary(phone);
+
+    if (ok) {
+      setNewName('');
+      setNewPhone('');
+      setShowAdd(false);
+      await onChanged();
+    }
     setAdding(false);
+  };
+
+  const handleUnlink = async (u: User) => {
+    if (!confirm(`Unlink Dr ${u.full_name} from this practice? They'll remain registered at their home practice.`)) return;
+    const { error } = await supabase.from('practice_surgeons').delete().eq('practice_id', practiceId).eq('surgeon_id', u.id);
+    if (error) { toast.error('Failed to unlink'); return; }
+    toast.success('Surgeon unlinked');
     onChanged();
   };
 
@@ -279,7 +347,33 @@ function UsersTab({ users, currentUserId, onChanged }: { users: User[]; currentU
             })}
           </tbody>
         </table>
+        {users.length === 0 && <p className="text-sm text-gray-400 p-6 text-center">No users yet.</p>}
       </div>
+
+      {linkedSurgeons.length > 0 && (
+        <div className="bg-white border border-gray-200 overflow-hidden" style={{ borderRadius: 12, borderWidth: 0.5 }}>
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-900">Linked surgeons</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Surgeons who also work elsewhere and are shared into this practice for booking. Their account is managed at their home practice.</p>
+          </div>
+          <table className="w-full text-sm">
+            <tbody>
+              {linkedSurgeons.map((u) => (
+                <tr key={u.id} className="border-b border-gray-50 last:border-0">
+                  <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
+                  <td className="px-4 py-3 text-gray-900">{u.full_name}</td>
+                  <td className="px-4 py-3 text-gray-600 text-xs">{u.phone}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => handleUnlink(u)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded" title="Unlink">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {showAdd && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={() => setShowAdd(false)}>
@@ -296,6 +390,9 @@ function UsersTab({ users, currentUserId, onChanged }: { users: User[]; currentU
                   <span className="px-3 py-2.5 text-sm text-gray-500 bg-gray-50 border-r border-gray-200">+65</span>
                   <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="9232 2222" className="flex-1 px-3 py-2.5 text-sm outline-none" />
                 </div>
+                {newRole === 'surgeon' && (
+                  <p className="text-xs text-gray-400 mt-1">If this number already belongs to a surgeon at another practice, they'll be linked here instead of getting a new invite.</p>
+                )}
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={() => setShowAdd(false)} className="flex-1 py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
