@@ -40,7 +40,6 @@ export function NewBookingPage() {
       .select('*')
       .eq('practice_id', user.practice_id)
       .eq('role', 'surgeon')
-      .eq('active', true)
       .order('full_name');
     setSurgeons((data || []) as User[]);
   }, [user]);
@@ -392,7 +391,7 @@ export function NewBookingPage() {
             >
               <option value="">Select surgeon...</option>
               {surgeons.map((s) => (
-                <option key={s.id} value={s.id}>Dr {s.full_name}</option>
+                <option key={s.id} value={s.id}>Dr {s.full_name}{!s.active ? ' (pending invite)' : ''}</option>
               ))}
             </select>
           </Field>
