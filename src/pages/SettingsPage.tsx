@@ -37,7 +37,7 @@ export function SettingsPage() {
       .eq('practice_id', user.practice_id)
       .order('full_name');
     setUsers((data || []) as User[]);
-    setSurgeons((data || []).filter((u) => u.role === 'surgeon') as User[]);
+    setSurgeons((data || []).filter((u) => u.role === 'surgeon' && !u.archived) as User[]);
   }, [user]);
 
   const loadLinkedSurgeons = useCallback(async () => {
@@ -282,13 +282,34 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
   const handleRemove = async (u: User) => {
     if (u.id === currentUserId) { toast.error('Cannot remove yourself'); return; }
     if (!confirm(`Remove ${u.full_name}?`)) return;
+
     const { error } = await supabase.from('users').delete().eq('id', u.id);
-    if (error) { toast.error('Failed to remove user'); return; }
-    toast.success('User removed');
+    if (!error) {
+      toast.success('User removed');
+      onChanged();
+      return;
+    }
+
+    if (error.code === '23503') {
+      const { error: archiveError } = await supabase.from('users').update({ archived: true }).eq('id', u.id);
+      if (archiveError) { toast.error('Failed to remove user'); return; }
+      toast.success(`${u.full_name} has existing bookings, so they were archived instead of deleted — no longer bookable for new cases, but their case history is kept.`);
+      onChanged();
+      return;
+    }
+
+    toast.error('Failed to remove user');
+  };
+
+  const handleRestore = async (u: User) => {
+    const { error } = await supabase.from('users').update({ archived: false }).eq('id', u.id);
+    if (error) { toast.error('Failed to restore'); return; }
+    toast.success(`${u.full_name} restored`);
     onChanged();
   };
 
   const getStatus = (u: User) => {
+    if (u.archived) return { label: 'Archived', class: 'bg-gray-200 text-gray-600' };
     if (u.active) return { label: 'Active', class: 'bg-green-100 text-green-700' };
     if (u.invite_token) return { label: 'Invite sent', class: 'bg-amber-100 text-amber-700' };
     return { label: 'Not sent', class: 'bg-gray-100 text-gray-500' };
@@ -331,14 +352,22 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
                   <td className="px-4 py-3 text-right">
                     {!isSelf && (
                       <div className="flex justify-end gap-1">
-                        {!u.active && (
-                          <button onClick={() => handleResendInvite(u)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded" title="Resend invite">
-                            <Send className="w-4 h-4" />
+                        {u.archived ? (
+                          <button onClick={() => handleRestore(u)} className="px-2.5 py-1 text-xs font-medium text-[#3C3489] border border-[#3C3489] rounded-lg hover:bg-[#EEEDFE]" title="Restore">
+                            Restore
                           </button>
+                        ) : (
+                          <>
+                            {!u.active && (
+                              <button onClick={() => handleResendInvite(u)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded" title="Resend invite">
+                                <Send className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button onClick={() => handleRemove(u)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded" title="Remove">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
                         )}
-                        <button onClick={() => handleRemove(u)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded" title="Remove">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     )}
                   </td>
