@@ -340,6 +340,7 @@ export function NewBookingPage() {
             {anaesthesiaOptions.map((opt) => (
               <label
                 key={opt.key}
+                onClick={() => toggleAnaesthesia(opt.key)}
                 className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
                   form.anaesthesia_preferences.includes(opt.key)
                     ? 'border-[#3C3489] bg-[#EEEDFE]/30'
