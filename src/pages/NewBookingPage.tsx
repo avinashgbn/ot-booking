@@ -40,6 +40,7 @@ export function NewBookingPage() {
       .select('*')
       .eq('practice_id', user.practice_id)
       .eq('role', 'surgeon')
+      .eq('archived', false)
       .order('full_name');
 
     const { data: linked } = await supabase

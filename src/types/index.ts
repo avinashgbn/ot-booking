@@ -33,6 +33,7 @@ export interface User {
   role: UserRole;
   pin_hash: string | null;
   active: boolean;
+  archived: boolean;
   invite_token: string | null;
   invite_expires_at: string | null;
   created_at: string;
