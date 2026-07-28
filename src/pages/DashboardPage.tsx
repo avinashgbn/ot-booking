@@ -152,7 +152,7 @@ export function DashboardPage() {
   const stepsForBooking = (bookingId: string) => cascadeSteps.filter((s) => s.booking_id === bookingId);
 
   const handleResendConfirmation = async (booking: Booking) => {
-    toast('Resending confirmation SMS...');
+    toast('Resending confirmation via WhatsApp...');
     await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
       method: 'POST',
       headers: {
@@ -161,7 +161,7 @@ export function DashboardPage() {
       },
       body: JSON.stringify({ type: 'confirmation', bookingId: booking.id }),
     });
-    toast.success('Confirmation SMS resent');
+    toast.success('Confirmation resent via WhatsApp');
   };
 
   const handleCancelCase = (booking: Booking) => {
@@ -169,7 +169,7 @@ export function DashboardPage() {
   };
 
   const handleResendCancellation = async (booking: Booking) => {
-    toast('Resending cancellation SMS...');
+    toast('Resending cancellation via WhatsApp...');
     await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
       method: 'POST',
       headers: {
@@ -178,7 +178,7 @@ export function DashboardPage() {
       },
       body: JSON.stringify({ type: 'cancellation', bookingId: booking.id }),
     });
-    toast.success('Cancellation SMS resent');
+    toast.success('Cancellation resent via WhatsApp');
   };
 
   const handleMarkAcknowledged = async (booking: Booking) => {

@@ -93,7 +93,7 @@ export function SuperadminDashboardPage() {
       notes: `Created practice "${name}" with admin ${adminName}`,
     });
 
-    toast.success('Practice created. Invite SMS sent to admin.');
+    toast.success('Practice created. Invite sent via WhatsApp to admin.');
     setShowCreate(false);
     fetchData();
   };
@@ -248,7 +248,7 @@ function CreatePracticeModal({ onClose, onCreate }: { onClose: () => void; onCre
               <span className="px-3 py-2.5 text-sm text-gray-500 bg-gray-50 border-r border-gray-200">+65</span>
               <input type="tel" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} placeholder="9232 2222" className="flex-1 px-3 py-2.5 text-sm outline-none" />
             </div>
-            <p className="text-xs text-gray-400 mt-1">An invite SMS will be sent to this number.</p>
+            <p className="text-xs text-gray-400 mt-1">An invite will be sent via WhatsApp to this number.</p>
           </div>
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>

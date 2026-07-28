@@ -73,6 +73,7 @@ export interface Booking {
   patient_initials: string;
   patient_age: number;
   procedure: string;
+  hospital_clinic: string;
   ot_location: string;
   surgery_date: string;
   surgery_time: string;

@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { sendWhatsApp, formatDate, formatTime, anaesthesiaLabel, createSupabaseClient, stripWhatsAppPrefix, buildCaseRequestBody } from '../_shared/whatsapp.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,64 +6,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-async function sendTwilioSms(to: string, body: string): Promise<boolean> {
-  const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-  const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-  const fromPhone = Deno.env.get('TWILIO_PHONE_NUMBER');
-
-  if (!accountSid || !authToken || !fromPhone) return false;
-
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-  const auth = btoa(`${accountSid}:${authToken}`);
-
-  const formData = new URLSearchParams();
-  formData.append('To', to);
-  formData.append('From', fromPhone);
-  formData.append('Body', body);
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: formData.toString(),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function formatTime(timeStr: string): string {
-  const [h, m] = timeStr.split(':');
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-  return `${displayHour}:${m} ${ampm}`;
-}
-
-function anaesthesiaLabel(pref: string): string {
-  switch (pref) {
-    case 'up_to_anaesthetist': return 'Up to anaesthetist';
-    case 'GA': return 'GA';
-    case 'regional': return 'Regional';
-    case 'sedation': return 'Sedation';
-    default: return pref;
-  }
-}
-
 async function sendConfirmationSms(supabase: any, booking: any, anaesthetist: any): Promise<void> {
   const anaesPrefs = (booking.anaesthesia_preferences || []).map(anaesthesiaLabel).join(', ');
   const body = `Dear Dr ${anaesthetist.full_name},\n\nYou are confirmed for ${booking.patient_initials}'s case - ${booking.procedure} on ${formatDate(booking.surgery_date)} at ${formatTime(booking.surgery_time)} for ${booking.duration_hours} hrs at ${booking.ot_location}.\n\nAnaesthesia: ${anaesPrefs}.\n\nContact ${booking.secretary_phone} if you have any queries.`;
 
-  const sent = await sendTwilioSms(anaesthetist.phone, body);
+  const sent = await sendWhatsApp(anaesthetist.phone, body);
   if (sent) {
     await supabase.from('sms_log').insert({
       booking_id: booking.id,
@@ -79,7 +26,7 @@ async function sendConfirmationSms(supabase: any, booking: any, anaesthetist: an
 
 async function sendReleaseSms(supabase: any, booking: any, anaesthetist: any): Promise<void> {
   const body = `Hi Dr ${anaesthetist.full_name}, this case (${booking.patient_initials} - ${booking.procedure} on ${formatDate(booking.surgery_date)}) has been filled by another anaesthetist. Thank you for your availability.`;
-  const sent = await sendTwilioSms(anaesthetist.phone, body);
+  const sent = await sendWhatsApp(anaesthetist.phone, body);
   if (sent) {
     await supabase.from('sms_log').insert({
       booking_id: booking.id,
@@ -95,7 +42,7 @@ async function sendReleaseSms(supabase: any, booking: any, anaesthetist: any): P
 
 async function sendInvalidReplySms(supabase: any, booking: any, anaesthetist: any): Promise<void> {
   const body = `Sorry, we did not recognise your reply.\n\nReply 1 to ACCEPT or 2 to DECLINE the case for ${booking.patient_initials} on ${formatDate(booking.surgery_date)}.\n\nYou have time remaining on your window.`;
-  const sent = await sendTwilioSms(anaesthetist.phone, body);
+  const sent = await sendWhatsApp(anaesthetist.phone, body);
   if (sent) {
     await supabase.from('sms_log').insert({
       booking_id: booking.id,
@@ -115,9 +62,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const supabase = createSupabaseClient();
 
     // Parse Twilio webhook (form-encoded)
     const contentType = req.headers.get('content-type') || '';
@@ -133,6 +78,9 @@ Deno.serve(async (req: Request) => {
       fromPhone = json.From || json.from || '';
       bodyText = json.Body || json.body || '';
     }
+
+    // Twilio prefixes WhatsApp addresses with "whatsapp:"; stored phone numbers are plain E.164
+    fromPhone = stripWhatsAppPrefix(fromPhone);
 
     if (!fromPhone || !bodyText) {
       return new Response('<Response/>', {
@@ -189,7 +137,7 @@ Deno.serve(async (req: Request) => {
       }).eq('id', cancelledBooking.id);
 
       const ackBody = `Thank you Dr ${anaesthetist.full_name}. Cancellation acknowledged and recorded.`;
-      const sent = await sendTwilioSms(fromPhone, ackBody);
+      const sent = await sendWhatsApp(fromPhone, ackBody);
       if (sent) {
         await supabase.from('sms_log').insert({
           booking_id: cancelledBooking.id,
@@ -216,7 +164,8 @@ Deno.serve(async (req: Request) => {
         *,
         booking:bookings!cascade_steps_booking_id_fkey(
           *,
-          surgeon:users!bookings_surgeon_id_fkey(*)
+          surgeon:users!bookings_surgeon_id_fkey(*),
+          practice:practices!bookings_practice_id_fkey(*, admin:users!practices_admin_user_id_fkey(*))
         ),
         anaesthetist:anaesthetists!cascade_steps_anaesthetist_id_fkey(*)
       `)
@@ -302,10 +251,9 @@ Deno.serve(async (req: Request) => {
           }).eq('id', nextStep.id);
 
           // Send case request to next anaesthetist
-          const anaesPrefs = (booking.anaesthesia_preferences || []).map(anaesthesiaLabel).join(' or ');
-          const reqBody = `You have a case request:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nDate: ${formatDate(booking.surgery_date)} - ${formatTime(booking.surgery_time)} (${booking.duration_hours} hrs)\nLocation: ${booking.ot_location}\nSurgeon: Dr ${booking.surgeon?.full_name || 'Unknown'}\nAnaesthesia: ${anaesPrefs}\n\nReply 1 to ACCEPT\nReply 2 to DECLINE\n\nReply within 5 minutes.`;
+          const reqBody = buildCaseRequestBody(booking, 5);
 
-          const sent = await sendTwilioSms(nextStep.anaesthetist.phone, reqBody);
+          const sent = await sendWhatsApp(nextStep.anaesthetist.phone, reqBody);
           if (sent) {
             await supabase.from('sms_log').insert({
               booking_id: booking.id,

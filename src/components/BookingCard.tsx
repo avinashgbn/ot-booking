@@ -67,7 +67,7 @@ export function BookingCard({
               </span>
               <span className="inline-flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5" />
-                {booking.ot_location}
+                {booking.hospital_clinic} · {booking.ot_location}
               </span>
             </div>
           </div>
@@ -108,6 +108,10 @@ export function BookingCard({
             <div>
               <span className="text-gray-400">Cascade mode</span>
               <p className="text-gray-900 mt-0.5 capitalize">{booking.cascade_mode}</p>
+            </div>
+            <div>
+              <span className="text-gray-400">Hospital / Clinic</span>
+              <p className="text-gray-900 mt-0.5">{booking.hospital_clinic}</p>
             </div>
             <div>
               <span className="text-gray-400">Booked by</span>
@@ -153,7 +157,7 @@ export function BookingCard({
           {booking.status === 'confirmed' && confirmedAnaesthetist && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-700 flex items-center gap-2">
               <CheckCircle className="w-4 h-4 flex-shrink-0" />
-              Dr {confirmedAnaesthetist.full_name} confirmed. Confirmation SMS sent. Surgeon dashboard updated.
+              Dr {confirmedAnaesthetist.full_name} confirmed. Confirmation sent via WhatsApp. Surgeon dashboard updated.
             </div>
           )}
 
@@ -196,7 +200,7 @@ export function BookingCard({
                   onClick={() => onResendCancellation(booking)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
                 >
-                  <RotateCw className="w-3.5 h-3.5" /> Resend cancellation SMS
+                  <RotateCw className="w-3.5 h-3.5" /> Resend cancellation message
                 </button>
                 <button
                   onClick={() => onMarkAcknowledged(booking)}

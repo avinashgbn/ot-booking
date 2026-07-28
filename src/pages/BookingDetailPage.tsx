@@ -119,7 +119,7 @@ export function BookingDetailPage() {
       body: JSON.stringify({ type: 'cancellation', bookingId: booking.id }),
     });
 
-    toast.success('Case cancelled. SMS sent to anaesthetist and surgeon.');
+    toast.success('Case cancelled. WhatsApp message sent to anaesthetist and surgeon.');
     setCancelling(false);
     setShowCancelModal(false);
     setCancelReason('');
@@ -162,7 +162,8 @@ export function BookingDetailPage() {
             <InfoRow label="Surgeon" value={
               <span className="flex items-center gap-1"><SurgeonBadge /> Dr {booking.surgeon?.full_name || 'Unknown'}</span>
             } />
-            <InfoRow label="OT location" value={booking.ot_location} />
+            <InfoRow label="Hospital / Clinic" value={booking.hospital_clinic} />
+            <InfoRow label="Location" value={booking.ot_location} />
             <InfoRow label="Date" value={formatDate(booking.surgery_date)} />
             <InfoRow label="Time" value={formatTime(booking.surgery_time)} />
             <InfoRow label="Duration" value={`${booking.duration_hours} hrs`} />
@@ -223,10 +224,10 @@ export function BookingDetailPage() {
           )}
         </Card>
 
-        {/* SMS audit log */}
-        <Card title="SMS audit log">
+        {/* WhatsApp audit log */}
+        <Card title="WhatsApp audit log">
           {smsLogs.length === 0 ? (
-            <p className="text-sm text-gray-400">No SMS messages logged.</p>
+            <p className="text-sm text-gray-400">No WhatsApp messages logged.</p>
           ) : (
             <div className="space-y-3">
               {smsLogs.map((log) => (
@@ -269,7 +270,7 @@ export function BookingDetailPage() {
             </div>
 
             <p className="text-xs text-gray-500 mb-2">
-              A cancellation SMS will be sent to both the anaesthetist and surgeon.
+              A cancellation message will be sent via WhatsApp to both the anaesthetist and surgeon.
             </p>
 
             <div className="mb-4">
@@ -296,7 +297,7 @@ export function BookingDetailPage() {
                 disabled={cancelling || !cancelReason.trim()}
                 className="flex-1 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
-                {cancelling ? 'Cancelling...' : 'Cancel case and send SMS'}
+                {cancelling ? 'Cancelling...' : 'Cancel case and notify via WhatsApp'}
               </button>
             </div>
           </div>

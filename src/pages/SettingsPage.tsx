@@ -198,7 +198,7 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
         },
         body: JSON.stringify({ type: 'invite', token: result.token, phone }),
       });
-      toast.success('Surgeon added. Invite SMS sent.');
+      toast.success('Surgeon added. Invite sent via WhatsApp.');
     }
     return true;
   };
@@ -231,7 +231,7 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
       body: JSON.stringify({ type: 'invite', token, phone }),
     });
 
-    toast.success('Secretary added. Invite SMS sent.');
+    toast.success('Secretary added. Invite sent via WhatsApp.');
     return true;
   };
 
@@ -275,7 +275,7 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
       body: JSON.stringify({ type: 'invite', token, phone: u.phone }),
     });
 
-    toast.success('Invite SMS resent');
+    toast.success('Invite resent via WhatsApp');
     onChanged();
   };
 

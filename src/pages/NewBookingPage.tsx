@@ -25,6 +25,7 @@ export function NewBookingPage() {
     patient_initials: '',
     patient_age: '',
     procedure: '',
+    hospital_clinic: '',
     ot_location: '',
     surgery_date: '',
     surgery_time: '',
@@ -142,7 +143,8 @@ export function NewBookingPage() {
     if (!form.patient_initials.trim()) { toast.error('Enter patient initials'); return; }
     if (!form.patient_age) { toast.error('Enter patient age'); return; }
     if (!form.procedure.trim()) { toast.error('Enter procedure'); return; }
-    if (!form.ot_location.trim()) { toast.error('Enter OT location'); return; }
+    if (!form.hospital_clinic.trim()) { toast.error('Enter hospital/clinic'); return; }
+    if (!form.ot_location.trim()) { toast.error('Enter location'); return; }
     if (!form.surgery_date) { toast.error('Select date'); return; }
     if (!form.surgery_time) { toast.error('Select time'); return; }
     if (!form.duration_hours) { toast.error('Enter duration'); return; }
@@ -160,6 +162,7 @@ export function NewBookingPage() {
         patient_initials: form.patient_initials.trim(),
         patient_age: parseInt(form.patient_age, 10),
         procedure: form.procedure.trim(),
+        hospital_clinic: form.hospital_clinic.trim(),
         ot_location: form.ot_location.trim(),
         surgery_date: form.surgery_date,
         surgery_time: form.surgery_time,
@@ -224,6 +227,7 @@ export function NewBookingPage() {
         patient_initials: form.patient_initials.trim() || 'TBD',
         patient_age: parseInt(form.patient_age, 10) || 0,
         procedure: form.procedure.trim() || 'TBD',
+        hospital_clinic: form.hospital_clinic.trim() || 'TBD',
         ot_location: form.ot_location.trim() || 'TBD',
         surgery_date: form.surgery_date || new Date().toISOString().split('T')[0],
         surgery_time: form.surgery_time || '09:00',
@@ -308,12 +312,21 @@ export function NewBookingPage() {
 
         {/* Section 2: OT details */}
         <Section title="OT details" number={2} subtitle="Confirmed by phone with OT">
-          <Field label="OT location / hospital and theatre">
+          <Field label="Hospital / Clinic">
+            <input
+              type="text"
+              value={form.hospital_clinic}
+              onChange={(e) => setForm({ ...form, hospital_clinic: e.target.value })}
+              placeholder="Mount Novena Hospital"
+              className="form-input"
+            />
+          </Field>
+          <Field label="Location (OT / Day Surgery / Endoscopy, etc.)">
             <input
               type="text"
               value={form.ot_location}
               onChange={(e) => setForm({ ...form, ot_location: e.target.value })}
-              placeholder="Mount Novenal Hospital, Main OT"
+              placeholder="Main OT"
               className="form-input"
             />
           </Field>
