@@ -47,8 +47,8 @@ export function statusLabel(status: string, cancelAck?: boolean): string {
   if (status === 'cascade_running') return 'Cascade running';
   if (status === 'all_declined') return 'All declined';
   if (status === 'cancelled') {
-    if (cancelAck === false) return 'Action needed';
-    return 'Cancelled';
+    if (cancelAck === false) return 'Cancelled – awaiting ANA';
+    return 'Cancelled – ANA aware';
   }
   if (status === 'pending') return 'Pending';
   return status;
