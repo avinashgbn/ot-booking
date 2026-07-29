@@ -8,7 +8,7 @@ import { ReorderableList } from '@/components/ReorderableList';
 import { normalisePhone } from '@/lib/utils';
 import type { User, Anaesthetist, AnaesthetistPreference, Practice, PracticeSurgeon } from '@/types';
 import {
-  ArrowLeft, Search, Plus, X, Trash2, Send, ShieldAlert
+  ArrowLeft, Search, Plus, X, Trash2, Send, ShieldAlert, Contact
 } from 'lucide-react';
 
 type Tab = 'practice' | 'users' | 'directory' | 'lists' | 'admin';
@@ -450,6 +450,26 @@ function DirectoryTab({ anaesthetists, onChanged }: { anaesthetists: Anaesthetis
     return a.full_name.toLowerCase().includes(q) || a.hospitals?.some((h) => h.toLowerCase().includes(q));
   });
 
+  // Contact Picker API: Android Chrome only (no iOS Safari / desktop support).
+  // Falls back to the manual form below when unavailable — nothing else to do.
+  const contactPickerSupported = typeof navigator !== 'undefined' && 'contacts' in navigator && 'ContactsManager' in window;
+
+  const handleImportFromContacts = async () => {
+    try {
+      const contacts = await (navigator as any).contacts.select(['name', 'tel'], { multiple: false });
+      if (!contacts || contacts.length === 0) return;
+      const contact = contacts[0];
+      let tel = ((contact.tel && contact.tel[0]) || '').replace(/[\s-]/g, '');
+      if (tel.startsWith('+65')) tel = tel.slice(3);
+      else if (tel.startsWith('65') && tel.length > 8) tel = tel.slice(2);
+      setNewName((contact.name && contact.name[0]) || '');
+      setNewPhone(tel);
+      setShowAdd(true);
+    } catch {
+      // User cancelled the picker — nothing to do.
+    }
+  };
+
   const handleAdd = async () => {
     if (!newName.trim() || !newPhone.trim()) { toast.error('Enter name and phone'); return; }
     const hospitals = newHospitals.split(',').map((h) => h.trim()).filter(Boolean);
@@ -476,6 +496,11 @@ function DirectoryTab({ anaesthetists, onChanged }: { anaesthetists: Anaesthetis
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or hospital..." className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400" />
         </div>
+        {contactPickerSupported && (
+          <button onClick={handleImportFromContacts} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
+            <Contact className="w-4 h-4" /> Import from contacts
+          </button>
+        )}
         <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670]">
           <Plus className="w-4 h-4" /> Add anaesthetist
         </button>
