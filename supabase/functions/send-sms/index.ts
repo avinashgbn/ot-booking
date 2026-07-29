@@ -112,7 +112,7 @@ Deno.serve(async (req: Request) => {
 
       // Send to confirmed anaesthetist
       if (booking.confirmed_anaesthetist) {
-        const anaesBody = `ALERT: CASE CANCELLED\n\nDear Dr ${booking.confirmed_anaesthetist.full_name},\n\nThe following confirmed case has been cancelled:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nDate: ${formatDate(booking.surgery_date)} - ${formatTime(booking.surgery_time)}\nLocation: ${booking.ot_location}\n\nReason: ${booking.cancel_reason}\n\nWe apologise for the inconvenience. For queries contact ${booking.secretary_phone}.\n\nReply 1 to acknowledge this cancellation.`;
+        const anaesBody = `ALERT: CASE CANCELLED\n\nDear Dr ${booking.confirmed_anaesthetist.full_name},\n\nThe following confirmed case has been cancelled:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nSurgeon: Dr ${booking.surgeon?.full_name || 'Unknown'}\nDate: ${formatDate(booking.surgery_date)}\nTime: ${formatTime(booking.surgery_time)}\nLocation: ${booking.ot_location}\n\nReason: ${booking.cancel_reason}\n\nWe apologise for the inconvenience. For queries contact ${booking.secretary_phone}.\n\nReply 1 to acknowledge this cancellation.`;
 
         const sent = await sendWhatsApp(booking.confirmed_anaesthetist.phone, anaesBody);
         if (!sent) success = false;
