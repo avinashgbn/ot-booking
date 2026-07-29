@@ -8,7 +8,7 @@ const corsHeaders = {
 
 async function sendConfirmationSms(supabase: any, booking: any, anaesthetist: any): Promise<void> {
   const anaesPrefs = (booking.anaesthesia_preferences || []).map(anaesthesiaLabel).join(', ');
-  const body = `Dear Dr ${anaesthetist.full_name},\n\nYou are confirmed for ${booking.patient_initials}'s case - ${booking.procedure} on ${formatDate(booking.surgery_date)} at ${formatTime(booking.surgery_time)} for ${booking.duration_hours} hrs at ${booking.ot_location}.\n\nAnaesthesia: ${anaesPrefs}.\n\nContact ${booking.secretary_phone} if you have any queries.`;
+  const body = `Dear Dr ${anaesthetist.full_name},\n\nYou are confirmed for the following case:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nSurgeon: Dr ${booking.surgeon?.full_name || 'Unknown'}\nHospital/Clinic: ${booking.hospital_clinic || 'Unknown'}\nLocation: ${booking.ot_location}\nDate: ${formatDate(booking.surgery_date)}\nTime: ${formatTime(booking.surgery_time)}\nDuration: ${booking.duration_hours} hrs\nAnaesthesia: ${anaesPrefs}\n\nContact ${booking.secretary_phone} if you have any queries.`;
 
   const sent = await sendWhatsApp(anaesthetist.phone, body);
   if (sent) {
