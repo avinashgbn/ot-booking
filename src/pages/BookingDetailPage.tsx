@@ -7,7 +7,7 @@ import { SurgeonBadge, AnaesthetistBadge, StatusBadge } from '@/components/Badge
 import { formatDate, formatTime, formatDateTime, anaesthesiaLabel } from '@/lib/utils';
 import type { Booking, CascadeStep, SmsLog, User, Anaesthetist } from '@/types';
 import {
-  ArrowLeft, Calendar, Clock, MapPin, XCircle, Send, AlertTriangle, CheckCircle, RotateCw
+  ArrowLeft, Calendar, Clock, MapPin, XCircle, Send, AlertTriangle, CheckCircle, RotateCw, Search, Plus, X
 } from 'lucide-react';
 
 export function BookingDetailPage() {
@@ -22,6 +22,10 @@ export function BookingDetailPage() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [allAnaesthetists, setAllAnaesthetists] = useState<Anaesthetist[]>([]);
+  const [addSearch, setAddSearch] = useState('');
+  const [staged, setStaged] = useState<Anaesthetist[]>([]);
+  const [sendingNew, setSendingNew] = useState(false);
 
   const showCancel = searchParams.get('cancel') === '1';
 
@@ -84,6 +88,70 @@ export function BookingDetailPage() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [id, fetchData]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('anaesthetists').select('*').eq('active', true).order('full_name');
+      setAllAnaesthetists((data || []) as Anaesthetist[]);
+    })();
+  }, []);
+
+  const askedIds = new Set(cascadeSteps.map((s) => s.anaesthetist_id));
+  const available = allAnaesthetists.filter((a) =>
+    !askedIds.has(a.id) &&
+    !staged.some((s) => s.id === a.id) &&
+    (!addSearch.trim() ||
+      a.full_name.toLowerCase().includes(addSearch.toLowerCase()) ||
+      a.hospitals?.some((h) => h.toLowerCase().includes(addSearch.toLowerCase())))
+  );
+
+  const addStaged = (a: Anaesthetist) => setStaged((s) => [...s, a]);
+  const removeStaged = (id: string) => setStaged((s) => s.filter((a) => a.id !== id));
+
+  const handleSendNewRequests = async () => {
+    if (!booking || staged.length === 0) return;
+    setSendingNew(true);
+
+    const maxRank = cascadeSteps.reduce((m, s) => Math.max(m, s.rank), 0);
+    const inserts = staged.map((a, i) => ({
+      booking_id: booking.id,
+      anaesthetist_id: a.id,
+      rank: maxRank + i + 1,
+      outcome: 'pending' as const,
+    }));
+
+    const { error: insertError } = await supabase.from('cascade_steps').insert(inserts);
+    if (insertError) {
+      toast.error('Failed to add anaesthetist');
+      setSendingNew(false);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({ status: 'cascade_running' })
+      .eq('id', booking.id);
+    if (updateError) {
+      toast.error('Failed to restart cascade');
+      setSendingNew(false);
+      return;
+    }
+
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cascade-engine`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ bookingId: booking.id, action: 'start' }),
+    });
+
+    toast.success('New case request sent via WhatsApp');
+    setStaged([]);
+    setAddSearch('');
+    setSendingNew(false);
+    fetchData();
+  };
 
   const handleCancel = async () => {
     if (!cancelReason.trim()) {
@@ -194,6 +262,87 @@ export function BookingDetailPage() {
             </button>
           )}
         </Card>
+
+        {/* Cascade exhausted: add anaesthetist */}
+        {booking.status === 'all_declined' && (
+          <Card title="Cascade exhausted — add an anaesthetist">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs font-medium text-gray-700 mb-2">Already asked</p>
+                <div className="space-y-2">
+                  {[...cascadeSteps].sort((a, b) => a.rank - b.rank).map((step) => (
+                    <div key={step.id} className="flex items-center justify-between text-xs border border-gray-100 rounded-lg px-3 py-2">
+                      <span className="flex items-center gap-1.5">
+                        <AnaesthetistBadge /> Dr {step.anaesthetist?.full_name || 'Unknown'}
+                      </span>
+                      <span className="text-gray-500 capitalize">{step.outcome}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-700 mb-2">Add anaesthetist</p>
+                <div className="relative mb-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={addSearch}
+                    onChange={(e) => setAddSearch(e.target.value)}
+                    placeholder="Search by name or hospital..."
+                    className="w-full pl-9 pr-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-gray-400"
+                  />
+                </div>
+
+                {staged.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {staged.map((a) => (
+                      <span key={a.id} className="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-full text-xs bg-[#EEEDFE] text-[#3C3489]">
+                        Dr {a.full_name}
+                        <button type="button" onClick={() => removeStaged(a.id)} className="p-0.5 hover:text-red-600">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="max-h-48 overflow-y-auto space-y-1 mb-3">
+                  {available.length === 0 ? (
+                    <p className="text-xs text-gray-400 py-2">
+                      {addSearch.trim() ? 'No match' : 'No other anaesthetists available — everyone in the directory has already been asked.'}
+                    </p>
+                  ) : (
+                    available.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => addStaged(a)}
+                        className="w-full flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-gray-50 text-left"
+                      >
+                        <span className="text-xs text-gray-900">Dr {a.full_name}</span>
+                        <Plus className="w-3.5 h-3.5 text-gray-400" />
+                      </button>
+                    ))
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSendNewRequests}
+                  disabled={staged.length === 0 || sendingNew}
+                  className="w-full py-2 text-xs font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670] disabled:opacity-50"
+                >
+                  {sendingNew
+                    ? 'Sending...'
+                    : staged.length > 0
+                      ? `Send request to ${staged.length} anaesthetist${staged.length !== 1 ? 's' : ''}`
+                      : 'Send request'}
+                </button>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Cascade timeline */}
         <Card title="Cascade timeline">

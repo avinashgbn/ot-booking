@@ -125,7 +125,17 @@ export function BookingCard({
             )}
           </div>
 
-          {booking.status === 'cascade_running' && sortedSteps.length > 0 && (
+          {booking.status === 'all_declined' && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>
+                All {sortedSteps.length} anaesthetist{sortedSteps.length !== 1 ? 's' : ''} declined or did not respond.
+                Open full details to add another anaesthetist.
+              </span>
+            </div>
+          )}
+
+          {(booking.status === 'cascade_running' || booking.status === 'all_declined') && sortedSteps.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-gray-700">Cascade list</p>
               {sortedSteps.map((step) => (

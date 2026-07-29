@@ -39,6 +39,8 @@ async function startCascade(supabase: any, bookingId: string): Promise<void> {
 
   if (!booking) return;
 
+  // Filtering to 'pending' also lets this function safely re-run after a booking
+  // was previously exhausted (all_declined) and new anaesthetists were added.
   const { data: steps } = await supabase
     .from('cascade_steps')
     .select(`
@@ -46,6 +48,7 @@ async function startCascade(supabase: any, bookingId: string): Promise<void> {
       anaesthetist:anaesthetists!cascade_steps_anaesthetist_id_fkey(*)
     `)
     .eq('booking_id', bookingId)
+    .eq('outcome', 'pending')
     .order('rank');
 
   if (!steps || steps.length === 0) return;
@@ -124,8 +127,8 @@ async function checkExpirations(supabase: any): Promise<void> {
 
         await sendCaseRequest(supabase, step.booking, nextStep.anaesthetist, 5);
       } else {
-        // All exhausted, set booking back to pending
-        await supabase.from('bookings').update({ status: 'pending' }).eq('id', step.booking_id);
+        // All exhausted with no acceptance — flag for the secretary instead of looking unstarted
+        await supabase.from('bookings').update({ status: 'all_declined' }).eq('id', step.booking_id);
       }
     } else {
       // Simultaneous: check if all are done
@@ -136,7 +139,7 @@ async function checkExpirations(supabase: any): Promise<void> {
         .eq('outcome', 'pending');
 
       if (!remaining || remaining.length === 0) {
-        await supabase.from('bookings').update({ status: 'pending' }).eq('id', step.booking_id);
+        await supabase.from('bookings').update({ status: 'all_declined' }).eq('id', step.booking_id);
       }
     }
   }

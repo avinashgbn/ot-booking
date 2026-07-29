@@ -139,7 +139,7 @@ export function SurgeonPage() {
 
   const stats = {
     confirmed: upcoming.filter((b) => b.status === 'confirmed').length,
-    awaiting: upcoming.filter((b) => b.status === 'cascade_running' || b.status === 'pending').length,
+    awaiting: upcoming.filter((b) => b.status === 'cascade_running' || b.status === 'pending' || b.status === 'all_declined').length,
     thisMonth: bookings.filter((b) => {
       const d = new Date(b.surgery_date);
       return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();

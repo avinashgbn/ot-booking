@@ -33,6 +33,7 @@ export function anaesthetistBadgeClass(): string {
 export function statusBadgeClass(status: string, cancelAck?: boolean): string {
   if (status === 'confirmed') return 'bg-green-100 text-green-700';
   if (status === 'cascade_running') return 'bg-amber-100 text-amber-700';
+  if (status === 'all_declined') return 'bg-red-100 text-red-700';
   if (status === 'cancelled') {
     if (cancelAck === false) return 'bg-orange-100 text-orange-700';
     return 'bg-red-100 text-red-700';
@@ -44,6 +45,7 @@ export function statusBadgeClass(status: string, cancelAck?: boolean): string {
 export function statusLabel(status: string, cancelAck?: boolean): string {
   if (status === 'confirmed') return 'Confirmed';
   if (status === 'cascade_running') return 'Cascade running';
+  if (status === 'all_declined') return 'All declined';
   if (status === 'cancelled') {
     if (cancelAck === false) return 'Action needed';
     return 'Cancelled';

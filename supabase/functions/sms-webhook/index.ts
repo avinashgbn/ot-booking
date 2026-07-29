@@ -266,8 +266,8 @@ Deno.serve(async (req: Request) => {
             });
           }
         } else {
-          // All exhausted
-          await supabase.from('bookings').update({ status: 'pending' }).eq('id', booking.id);
+          // All exhausted with no acceptance — flag for the secretary instead of looking unstarted
+          await supabase.from('bookings').update({ status: 'all_declined' }).eq('id', booking.id);
         }
       } else {
         // Simultaneous: check if all done
@@ -278,7 +278,7 @@ Deno.serve(async (req: Request) => {
           .eq('outcome', 'pending');
 
         if (!remaining || remaining.length === 0) {
-          await supabase.from('bookings').update({ status: 'pending' }).eq('id', booking.id);
+          await supabase.from('bookings').update({ status: 'all_declined' }).eq('id', booking.id);
         }
       }
     } else {

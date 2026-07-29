@@ -1,6 +1,6 @@
 export type UserRole = 'superadmin' | 'practice_admin' | 'secretary' | 'surgeon';
 
-export type BookingStatus = 'pending' | 'cascade_running' | 'confirmed' | 'cancelled';
+export type BookingStatus = 'pending' | 'cascade_running' | 'confirmed' | 'cancelled' | 'all_declined';
 
 export type CascadeMode = 'sequential' | 'simultaneous';
 

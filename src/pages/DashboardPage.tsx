@@ -9,7 +9,7 @@ import { initials } from '@/lib/utils';
 import type { Booking, CascadeStep, User, Anaesthetist, Practice } from '@/types';
 import { Plus, Settings, Search, AlertTriangle } from 'lucide-react';
 
-type StatusFilter = 'all' | 'cascade_running' | 'confirmed' | 'cancelled' | 'attention';
+type StatusFilter = 'all' | 'cascade_running' | 'confirmed' | 'all_declined' | 'cancelled' | 'attention';
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -117,7 +117,7 @@ export function DashboardPage() {
   const filteredBookings = bookings.filter((b) => {
     if (selectedSurgeon && b.surgeon_id !== selectedSurgeon) return false;
     if (statusFilter === 'attention') {
-      return b.status === 'cancelled' && !b.cancel_acknowledged;
+      return (b.status === 'cancelled' && !b.cancel_acknowledged) || b.status === 'all_declined';
     }
     if (statusFilter !== 'all' && b.status !== statusFilter) return false;
     if (search.trim()) {
@@ -142,7 +142,7 @@ export function DashboardPage() {
       new Date(b.surgery_date) >= today
     ).length,
     cascade: bookings.filter((b) => b.status === 'cascade_running').length,
-    attention: bookings.filter((b) => b.status === 'cancelled' && !b.cancel_acknowledged).length,
+    attention: bookings.filter((b) => (b.status === 'cancelled' && !b.cancel_acknowledged) || b.status === 'all_declined').length,
     confirmedThisWeek: bookings.filter((b) =>
       b.status === 'confirmed' && b.confirmed_at &&
       new Date(b.confirmed_at) >= today && new Date(b.confirmed_at) <= weekFromNow
@@ -198,6 +198,7 @@ export function DashboardPage() {
     { key: 'all', label: 'All' },
     { key: 'cascade_running', label: 'Cascade running' },
     { key: 'confirmed', label: 'Confirmed' },
+    { key: 'all_declined', label: 'All declined' },
     { key: 'cancelled', label: 'Cancelled' },
     { key: 'attention', label: 'Attention needed' },
   ];
