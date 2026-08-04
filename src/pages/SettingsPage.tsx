@@ -190,7 +190,7 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
     if (result.linked) {
       toast.success(`Dr ${result.surgeon.full_name} linked to this practice — they already have an account elsewhere, so no new invite is needed.`);
     } else {
-      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -222,7 +222,7 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
       return false;
     }
 
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -266,7 +266,7 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
     const { error } = await supabase.from('users').update({ invite_token: token, invite_expires_at: expiresAt }).eq('id', u.id);
     if (error) { toast.error('Failed to resend'); return; }
 
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

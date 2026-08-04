@@ -81,7 +81,7 @@ export function SuperadminDashboardPage() {
 
     await supabase.from('practices').update({ admin_user_id: adminUser.id }).eq('id', practice.id);
 
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
       body: JSON.stringify({ type: 'invite', token, phone, appUrl: window.location.origin }),

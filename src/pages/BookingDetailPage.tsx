@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { SurgeonBadge, AnaesthetistBadge, StatusBadge } from '@/components/Badges';
 import { formatDate, formatTime, formatDateTime, anaesthesiaLabel } from '@/lib/utils';
-import type { Booking, CascadeStep, SmsLog, User, Anaesthetist } from '@/types';
+import type { Booking, CascadeStep, WhatsAppLog, User, Anaesthetist } from '@/types';
 import {
   ArrowLeft, Calendar, Clock, MapPin, XCircle, Send, AlertTriangle, CheckCircle, RotateCw, Search, Plus, X
 } from 'lucide-react';
@@ -17,7 +17,7 @@ export function BookingDetailPage() {
   const { user } = useAuth();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [cascadeSteps, setCascadeSteps] = useState<CascadeStep[]>([]);
-  const [smsLogs, setSmsLogs] = useState<SmsLog[]>([]);
+  const [whatsappLogs, setWhatsappLogs] = useState<WhatsAppLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -61,11 +61,11 @@ export function BookingDetailPage() {
     setCascadeSteps((stepsData || []) as unknown as CascadeStep[]);
 
     const { data: logsData } = await supabase
-      .from('sms_log')
+      .from('whatsapp_log')
       .select('*')
       .eq('booking_id', id)
       .order('sent_at', { ascending: false });
-    setSmsLogs((logsData || []) as SmsLog[]);
+    setWhatsappLogs((logsData || []) as WhatsAppLog[]);
 
     setLoading(false);
   }, [id, navigate]);
@@ -84,7 +84,7 @@ export function BookingDetailPage() {
       .channel(`booking-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `id=eq.${id}` }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cascade_steps', filter: `booking_id=eq.${id}` }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sms_log', filter: `booking_id=eq.${id}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_log', filter: `booking_id=eq.${id}` }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [id, fetchData]);
@@ -178,7 +178,7 @@ export function BookingDetailPage() {
       return;
     }
 
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -375,11 +375,11 @@ export function BookingDetailPage() {
 
         {/* WhatsApp audit log */}
         <Card title="WhatsApp audit log">
-          {smsLogs.length === 0 ? (
+          {whatsappLogs.length === 0 ? (
             <p className="text-sm text-gray-400">No WhatsApp messages logged.</p>
           ) : (
             <div className="space-y-3">
-              {smsLogs.map((log) => (
+              {whatsappLogs.map((log) => (
                 <div key={log.id} className="border border-gray-100 rounded-lg p-3 text-sm">
                   <div className="flex items-center justify-between mb-1">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${

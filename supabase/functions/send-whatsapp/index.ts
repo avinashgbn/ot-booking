@@ -39,7 +39,7 @@ Deno.serve(async (req: Request) => {
       const sent = await sendWhatsApp(phone, body);
 
       if (sent) {
-        await supabase.from('sms_log').insert({
+        await supabase.from('whatsapp_log').insert({
           direction: 'outbound',
           message_type: 'request',
           body,
@@ -76,7 +76,7 @@ Deno.serve(async (req: Request) => {
       const sent = await sendWhatsApp(booking.confirmed_anaesthetist.phone, body);
 
       if (sent) {
-        await supabase.from('sms_log').insert({
+        await supabase.from('whatsapp_log').insert({
           booking_id: bookingId,
           anaesthetist_id: booking.confirmed_anaesthetist.id,
           direction: 'outbound',
@@ -119,7 +119,7 @@ Deno.serve(async (req: Request) => {
         if (!sent) success = false;
 
         if (sent) {
-          await supabase.from('sms_log').insert({
+          await supabase.from('whatsapp_log').insert({
             booking_id: bookingId,
             anaesthetist_id: booking.confirmed_anaesthetist.id,
             direction: 'outbound',
@@ -139,7 +139,7 @@ Deno.serve(async (req: Request) => {
         if (!sent) success = false;
 
         if (sent) {
-          await supabase.from('sms_log').insert({
+          await supabase.from('whatsapp_log').insert({
             booking_id: bookingId,
             direction: 'outbound',
             message_type: 'cancellation',
@@ -150,7 +150,7 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // Release SMS to any pending cascade steps
+      // Release WhatsApp message to any pending cascade steps
       const { data: pendingSteps } = await supabase
         .from('cascade_steps')
         .select(`
@@ -166,7 +166,7 @@ Deno.serve(async (req: Request) => {
           const sent = await sendWhatsApp(step.anaesthetist?.phone || '', releaseBody);
           if (sent) {
             await supabase.from('cascade_steps').update({ outcome: 'released' }).eq('id', step.id);
-            await supabase.from('sms_log').insert({
+            await supabase.from('whatsapp_log').insert({
               booking_id: bookingId,
               anaesthetist_id: step.anaesthetist_id,
               direction: 'outbound',
@@ -184,7 +184,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: 'Unknown SMS type' }), {
+    return new Response(JSON.stringify({ error: 'Unknown WhatsApp message type' }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
@@ -6,10 +7,11 @@ import { SurgeonBadge, AnaesthetistBadge, StatusBadge } from '@/components/Badge
 import { ReorderableList } from '@/components/ReorderableList';
 import { formatDate, formatTime, anaesthesiaLabel } from '@/lib/utils';
 import type { Booking, Practice, Anaesthetist, AnaesthetistPreference } from '@/types';
-import { Calendar, Clock, MapPin, Activity, Users, Plus, X, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Clock, MapPin, Activity, Users, Plus, X, Search, ChevronDown, ChevronUp, LogOut } from 'lucide-react';
 
 export function SurgeonPage() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [practice, setPractice] = useState<Practice | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,6 +96,11 @@ export function SurgeonPage() {
     fetchPrefs();
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login');
+  };
+
   const handleReorder = (newItems: AnaesthetistPreference[]) => {
     setPrefs(newItems);
     savePrefs(newItems);
@@ -149,11 +156,20 @@ export function SurgeonPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#3C3489] flex items-center justify-center">
-            <Activity className="w-4 h-4 text-white" strokeWidth={2.5} />
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[#3C3489] flex items-center justify-center">
+              <Activity className="w-4 h-4 text-white" strokeWidth={2.5} />
+            </div>
+            <span className="text-sm font-semibold text-gray-900">OT Booking</span>
           </div>
-          <span className="text-sm font-semibold text-gray-900">OT Booking</span>
+          <button
+            onClick={handleSignOut}
+            title="Log off"
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
       </header>
 

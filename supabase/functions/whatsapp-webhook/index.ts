@@ -6,13 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-async function sendConfirmationSms(supabase: any, booking: any, anaesthetist: any): Promise<void> {
+async function sendConfirmationWhatsApp(supabase: any, booking: any, anaesthetist: any): Promise<void> {
   const anaesPrefs = (booking.anaesthesia_preferences || []).map(anaesthesiaLabel).join(', ');
   const body = `Dear Dr ${anaesthetist.full_name},\n\nYou are confirmed for the following case:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\nSurgeon: Dr ${booking.surgeon?.full_name || 'Unknown'}\nHospital/Clinic: ${booking.hospital_clinic || 'Unknown'}\nLocation: ${booking.ot_location}\nDate: ${formatDate(booking.surgery_date)}\nTime: ${formatTime(booking.surgery_time)}\nDuration: ${booking.duration_hours} hrs\nAnaesthesia: ${anaesPrefs}\n\nContact ${booking.secretary_phone} if you have any queries.`;
 
   const sent = await sendWhatsApp(anaesthetist.phone, body);
   if (sent) {
-    await supabase.from('sms_log').insert({
+    await supabase.from('whatsapp_log').insert({
       booking_id: booking.id,
       anaesthetist_id: anaesthetist.id,
       direction: 'outbound',
@@ -24,11 +24,11 @@ async function sendConfirmationSms(supabase: any, booking: any, anaesthetist: an
   }
 }
 
-async function sendReleaseSms(supabase: any, booking: any, anaesthetist: any): Promise<void> {
+async function sendReleaseWhatsApp(supabase: any, booking: any, anaesthetist: any): Promise<void> {
   const body = `Hi Dr ${anaesthetist.full_name}, this case (${booking.patient_initials} - ${booking.procedure} on ${formatDate(booking.surgery_date)}) has been filled by another anaesthetist. Thank you for your availability.`;
   const sent = await sendWhatsApp(anaesthetist.phone, body);
   if (sent) {
-    await supabase.from('sms_log').insert({
+    await supabase.from('whatsapp_log').insert({
       booking_id: booking.id,
       anaesthetist_id: anaesthetist.id,
       direction: 'outbound',
@@ -40,11 +40,11 @@ async function sendReleaseSms(supabase: any, booking: any, anaesthetist: any): P
   }
 }
 
-async function sendInvalidReplySms(supabase: any, booking: any, anaesthetist: any): Promise<void> {
+async function sendInvalidReplyWhatsApp(supabase: any, booking: any, anaesthetist: any): Promise<void> {
   const body = `Sorry, we did not recognise your reply.\n\nReply 1 to ACCEPT or 2 to DECLINE the case for ${booking.patient_initials} on ${formatDate(booking.surgery_date)}.\n\nYou have time remaining on your window.`;
   const sent = await sendWhatsApp(anaesthetist.phone, body);
   if (sent) {
-    await supabase.from('sms_log').insert({
+    await supabase.from('whatsapp_log').insert({
       booking_id: booking.id,
       anaesthetist_id: anaesthetist.id,
       direction: 'outbound',
@@ -93,8 +93,8 @@ Deno.serve(async (req: Request) => {
     const reply = bodyText.trim();
     const firstChar = reply.charAt(0).toLowerCase();
 
-    // Log inbound SMS
-    await supabase.from('sms_log').insert({
+    // Log inbound WhatsApp message
+    await supabase.from('whatsapp_log').insert({
       direction: 'inbound',
       body: bodyText,
       from_phone: fromPhone,
@@ -139,7 +139,7 @@ Deno.serve(async (req: Request) => {
       const ackBody = `Thank you Dr ${anaesthetist.full_name}. Cancellation acknowledged and recorded.`;
       const sent = await sendWhatsApp(fromPhone, ackBody);
       if (sent) {
-        await supabase.from('sms_log').insert({
+        await supabase.from('whatsapp_log').insert({
           booking_id: cancelledBooking.id,
           anaesthetist_id: anaesthetist.id,
           direction: 'outbound',
@@ -198,7 +198,7 @@ Deno.serve(async (req: Request) => {
         confirmed_at: now,
       }).eq('id', booking.id);
 
-      await sendConfirmationSms(supabase, booking, anaesthetist);
+      await sendConfirmationWhatsApp(supabase, booking, anaesthetist);
 
       // If simultaneous, release all other pending steps
       if (booking.cascade_mode === 'simultaneous') {
@@ -218,7 +218,7 @@ Deno.serve(async (req: Request) => {
               outcome: 'released',
               responded_at: now,
             }).eq('id', step.id);
-            await sendReleaseSms(supabase, booking, step.anaesthetist);
+            await sendReleaseWhatsApp(supabase, booking, step.anaesthetist);
           }
         }
       }
@@ -255,7 +255,7 @@ Deno.serve(async (req: Request) => {
 
           const sent = await sendWhatsApp(nextStep.anaesthetist.phone, reqBody);
           if (sent) {
-            await supabase.from('sms_log').insert({
+            await supabase.from('whatsapp_log').insert({
               booking_id: booking.id,
               anaesthetist_id: nextStep.anaesthetist.id,
               direction: 'outbound',
@@ -283,7 +283,7 @@ Deno.serve(async (req: Request) => {
       }
     } else {
       // Invalid reply
-      await sendInvalidReplySms(supabase, booking, anaesthetist);
+      await sendInvalidReplyWhatsApp(supabase, booking, anaesthetist);
     }
 
     return new Response('<Response/>', {

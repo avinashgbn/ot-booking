@@ -7,13 +7,13 @@ import { BookingCard } from '@/components/BookingCard';
 import { SurgeonBadge } from '@/components/Badges';
 import { initials } from '@/lib/utils';
 import type { Booking, CascadeStep, User, Anaesthetist, Practice } from '@/types';
-import { Plus, Settings, Search, AlertTriangle } from 'lucide-react';
+import { Plus, Settings, Search, AlertTriangle, LogOut } from 'lucide-react';
 
 type StatusFilter = 'all' | 'cascade_running' | 'confirmed' | 'all_declined' | 'cancelled' | 'attention';
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [cascadeSteps, setCascadeSteps] = useState<CascadeStep[]>([]);
   const [surgeons, setSurgeons] = useState<User[]>([]);
@@ -153,7 +153,7 @@ export function DashboardPage() {
 
   const handleResendConfirmation = async (booking: Booking) => {
     toast('Resending confirmation via WhatsApp...');
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -170,7 +170,7 @@ export function DashboardPage() {
 
   const handleResendCancellation = async (booking: Booking) => {
     toast('Resending cancellation via WhatsApp...');
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`, {
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -179,6 +179,11 @@ export function DashboardPage() {
       body: JSON.stringify({ type: 'cancellation', bookingId: booking.id }),
     });
     toast.success('Cancellation resent via WhatsApp');
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login');
   };
 
   const handleMarkAcknowledged = async (booking: Booking) => {
@@ -230,6 +235,13 @@ export function DashboardPage() {
               className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg"
             >
               <Settings className="w-5 h-5" />
+            </button>
+            <button
+              onClick={handleSignOut}
+              title="Log off"
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
             <div className="w-9 h-9 rounded-full bg-[#EEEDFE] text-[#3C3489] flex items-center justify-center text-xs font-medium">
               {user ? initials(user.full_name) : ''}

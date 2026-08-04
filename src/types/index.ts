@@ -6,9 +6,9 @@ export type CascadeMode = 'sequential' | 'simultaneous';
 
 export type CascadeOutcome = 'pending' | 'accepted' | 'declined' | 'expired' | 'released';
 
-export type SmsDirection = 'outbound' | 'inbound';
+export type WhatsAppDirection = 'outbound' | 'inbound';
 
-export type SmsMessageType =
+export type WhatsAppMessageType =
   | 'request'
   | 'confirmation'
   | 'cancellation'
@@ -108,12 +108,12 @@ export interface CascadeStep {
   anaesthetist?: Anaesthetist;
 }
 
-export interface SmsLog {
+export interface WhatsAppLog {
   id: string;
   booking_id: string | null;
   anaesthetist_id: string | null;
-  direction: SmsDirection;
-  message_type: SmsMessageType | null;
+  direction: WhatsAppDirection;
+  message_type: WhatsAppMessageType | null;
   body: string | null;
   reply: string | null;
   to_phone: string | null;

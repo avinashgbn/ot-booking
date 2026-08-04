@@ -18,7 +18,7 @@ async function sendCaseRequest(supabase: any, booking: any, anaesthetist: any, w
   const sent = await sendWhatsApp(anaesthetist.phone, body);
 
   if (sent) {
-    await supabase.from('sms_log').insert({
+    await supabase.from('whatsapp_log').insert({
       booking_id: booking.id,
       anaesthetist_id: anaesthetist.id,
       direction: 'outbound',
