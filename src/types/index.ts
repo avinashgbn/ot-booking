@@ -92,6 +92,10 @@ export interface Booking {
   cancel_acknowledged_at: string | null;
   rescheduled_at: string | null;
   rescheduled_by: string | null;
+  previous_surgery_date: string | null;
+  previous_surgery_time: string | null;
+  previous_hospital_clinic: string | null;
+  previous_ot_location: string | null;
   secretary_phone: string | null;
   created_at: string;
   surgeon?: User;

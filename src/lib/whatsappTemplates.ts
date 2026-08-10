@@ -60,44 +60,54 @@ Reply within {{14}} minutes.`,
   reschedule_request: {
     name: 'ot_anaesthetist_reschedule_request',
     category: 'UTILITY',
-    variableCount: 14,
-    description: 'Sent to anaesthetists when a confirmed case is rescheduled. Starts a fresh cascade (previously-confirmed anaesthetist ranked first) with the new date/time/location. Used for both sequential and simultaneous modes.',
+    variableCount: 18,
+    description: 'Sent to anaesthetists when a confirmed case is rescheduled. Starts a fresh cascade (previously-confirmed anaesthetist ranked first) and shows previous -> new for date/time/hospital/location. Used for both sequential and simultaneous modes.',
     envVar: 'TWILIO_TEMPLATE_SID_RESCHEDULE_REQUEST',
     variables: {
       '{{1}}': 'Patient name/initials',
       '{{2}}': 'Patient age',
       '{{3}}': 'Procedure',
       '{{4}}': 'Surgeon name',
-      '{{5}}': 'New case date',
-      '{{6}}': 'New case time',
-      '{{7}}': 'Duration (hrs)',
-      '{{8}}': 'New Hospital/Clinic',
-      '{{9}}': 'New OT location',
-      '{{10}}': 'Anaesthesia type',
-      '{{11}}': 'Practice name',
-      '{{12}}': 'Secretary name',
-      '{{13}}': 'Secretary WhatsApp number',
-      '{{14}}': 'Timeout window (5 or 8 mins)',
+      '{{5}}': 'Original case date',
+      '{{6}}': 'Original case time',
+      '{{7}}': 'Original Hospital/Clinic',
+      '{{8}}': 'Original OT location',
+      '{{9}}': 'New case date',
+      '{{10}}': 'New case time',
+      '{{11}}': 'New Hospital/Clinic',
+      '{{12}}': 'New OT location',
+      '{{13}}': 'Duration (hrs)',
+      '{{14}}': 'Anaesthesia type',
+      '{{15}}': 'Practice name',
+      '{{16}}': 'Secretary name',
+      '{{17}}': 'Secretary WhatsApp number',
+      '{{18}}': 'Timeout window (5 or 8 mins)',
     },
-    body: `🔄 This case has been RESCHEDULED. Will you be available for the new date/time?
+    body: `This case has been RESCHEDULED.
 
 Patient: {{1}}, {{2}} yrs
 Surgery: {{3}}
 Surgeon: {{4}}
-New Date: {{5}}
-New Time: {{6}}
-Duration: {{7}} hrs
-Hospital/Clinic: {{8}}
-Location: {{9}}
-Anaesthesia: {{10}}
+Date: {{5}}
+Time: {{6}}
+Hospital/Clinic: {{7}}
+Location: {{8}}
 
-Booking Clinic: {{11}}
-Contact: {{12}}
-WhatsApp: {{13}}
+Rescheduled to:
+Date: {{9}}
+Time: {{10}}
+Hospital/Clinic: {{11}}
+Location: {{12}}
+
+Duration: {{13}} hrs
+Anaesthesia: {{14}}
+Booking Clinic: {{15}}
+Contact: {{16}}
+WhatsApp: {{17}}
 
 Reply *1* to ACCEPT
 Reply *2* to DECLINE
-Reply within {{14}} minutes.`,
+Reply within {{18}} minutes.`,
   },
 
   confirmation: {

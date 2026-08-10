@@ -202,7 +202,20 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      const surgeonBody = `ALERT: CASE RESCHEDULED\n\nDear Dr ${booking.surgeon.full_name},\n\nThe following case has been rescheduled:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\n\nNew Date: ${formatDate(booking.surgery_date)}\nNew Time: ${formatTime(booking.surgery_time)}\nNew Hospital/Clinic: ${booking.hospital_clinic || 'Unknown'}\nNew Location: ${booking.ot_location}\n\nWe are contacting anaesthetists for the new date/time. You will be notified once confirmed.\n\nFor queries contact ${booking.secretary_phone}.`;
+      const rDate = booking.previous_surgery_date
+        ? `${formatDate(booking.previous_surgery_date)} -> ${formatDate(booking.surgery_date)}`
+        : formatDate(booking.surgery_date);
+      const rTime = booking.previous_surgery_time
+        ? `${formatTime(booking.previous_surgery_time)} -> ${formatTime(booking.surgery_time)}`
+        : formatTime(booking.surgery_time);
+      const rHospital = booking.previous_hospital_clinic
+        ? `${booking.previous_hospital_clinic} -> ${booking.hospital_clinic || 'Unknown'}`
+        : (booking.hospital_clinic || 'Unknown');
+      const rLocation = booking.previous_ot_location
+        ? `${booking.previous_ot_location} -> ${booking.ot_location}`
+        : booking.ot_location;
+
+      const surgeonBody = `ALERT: CASE RESCHEDULED\n\nDear Dr ${booking.surgeon.full_name},\n\nThe following case has been rescheduled (previous -> new):\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\n\nDate: ${rDate}\nTime: ${rTime}\nHospital/Clinic: ${rHospital}\nLocation: ${rLocation}\n\nWe are contacting anaesthetists for the new date/time. You will be notified once confirmed.\n\nFor queries contact ${booking.secretary_phone}.`;
 
       const sent = await sendWhatsApp(booking.surgeon.phone, surgeonBody);
 

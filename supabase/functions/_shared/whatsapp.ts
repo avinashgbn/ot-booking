@@ -120,17 +120,30 @@ export function buildRescheduleRequestBody(booking: any, windowMinutes: number):
   const anaesPrefs = (booking.anaesthesia_preferences || []).map(anaesthesiaLabel).join(' or ');
   const admin = booking.practice?.admin;
 
+  // Original (pre-reschedule) schedule; fall back to current if not captured.
+  const oldDate = formatDate(booking.previous_surgery_date || booking.surgery_date);
+  const oldTime = formatTime(booking.previous_surgery_time || booking.surgery_time);
+  const oldHospital = booking.previous_hospital_clinic || booking.hospital_clinic || 'Unknown';
+  const oldLocation = booking.previous_ot_location || booking.ot_location;
+
   return [
-    'This case has been RESCHEDULED. Please review the updated details:',
+    'This case has been RESCHEDULED.',
     '',
     `Patient: ${booking.patient_initials}, ${booking.patient_age} yrs`,
     `Surgery: ${booking.procedure}`,
     `Surgeon: Dr ${booking.surgeon?.full_name || 'Unknown'}`,
-    `New Date: ${formatDate(booking.surgery_date)}`,
-    `New Time: ${formatTime(booking.surgery_time)}`,
+    `Date: ${oldDate}`,
+    `Time: ${oldTime}`,
+    `Hospital/Clinic: ${oldHospital}`,
+    `Location: ${oldLocation}`,
+    '',
+    'Rescheduled to:',
+    `Date: ${formatDate(booking.surgery_date)}`,
+    `Time: ${formatTime(booking.surgery_time)}`,
+    `Hospital/Clinic: ${booking.hospital_clinic || 'Unknown'}`,
+    `Location: ${booking.ot_location}`,
+    '',
     `Duration: ${booking.duration_hours} hrs`,
-    `New Hospital/Clinic: ${booking.hospital_clinic || 'Unknown'}`,
-    `New Location: ${booking.ot_location}`,
     `Anaesthesia: ${anaesPrefs}`,
     `Booking Clinic: ${booking.practice?.name || 'Unknown'}`,
     `Name: ${admin?.full_name || 'Unknown'}`,
