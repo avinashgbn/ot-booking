@@ -245,6 +245,11 @@ export function BookingDetailPage() {
     const { error: updateError } = await supabase
       .from('bookings')
       .update({
+        // Capture the current values as "previous" before overwriting them.
+        previous_surgery_date: booking.surgery_date,
+        previous_surgery_time: booking.surgery_time,
+        previous_hospital_clinic: booking.hospital_clinic,
+        previous_ot_location: booking.ot_location,
         surgery_date: rescheduleForm.surgery_date,
         surgery_time: rescheduleForm.surgery_time,
         hospital_clinic: rescheduleForm.hospital_clinic.trim(),
@@ -362,6 +367,19 @@ export function BookingDetailPage() {
             )}
             {booking.cancelled_at && (
               <InfoRow label="Cancelled at" value={formatDateTime(booking.cancelled_at)} />
+            )}
+            {booking.previous_surgery_date && (
+              <InfoRow label="Rescheduled from" value={
+                <span className="text-amber-600">
+                  {formatDate(booking.previous_surgery_date)}
+                  {booking.previous_surgery_time ? ` · ${formatTime(booking.previous_surgery_time)}` : ''}
+                  {booking.previous_hospital_clinic ? ` · ${booking.previous_hospital_clinic}` : ''}
+                  {booking.previous_ot_location ? ` · ${booking.previous_ot_location}` : ''}
+                </span>
+              } />
+            )}
+            {booking.rescheduled_at && (
+              <InfoRow label="Rescheduled at" value={formatDateTime(booking.rescheduled_at)} />
             )}
           </div>
 
@@ -596,7 +614,7 @@ export function BookingDetailPage() {
 
             <div className="bg-gray-50 rounded-lg p-3 mb-4 text-xs text-gray-600">
               <p><strong>{booking.patient_initials}, {booking.patient_age} yrs</strong> · {booking.procedure}</p>
-              <p>Currently: {formatDate(booking.surgery_date)} · {formatTime(booking.surgery_time)} · {booking.ot_location}</p>
+              <p>Currently: {formatDate(booking.surgery_date)} · {formatTime(booking.surgery_time)} · {booking.hospital_clinic} · {booking.ot_location}</p>
             </div>
 
             <p className="text-xs text-gray-500 mb-3">
