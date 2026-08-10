@@ -184,6 +184,44 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (type === 'reschedule' && bookingId) {
+      // Booking row already reflects the NEW date/time/location by the time the
+      // client calls this (the bookings UPDATE runs before this fetch).
+      const { data: booking } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          surgeon:users!bookings_surgeon_id_fkey(*)
+        `)
+        .eq('id', bookingId)
+        .maybeSingle();
+
+      if (!booking || !booking.surgeon) {
+        return new Response(JSON.stringify({ error: 'Booking or surgeon not found' }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const surgeonBody = `ALERT: CASE RESCHEDULED\n\nDear Dr ${booking.surgeon.full_name},\n\nThe following case has been rescheduled:\n\nPatient: ${booking.patient_initials}, ${booking.patient_age} yrs\nProcedure: ${booking.procedure}\n\nNew Date: ${formatDate(booking.surgery_date)}\nNew Time: ${formatTime(booking.surgery_time)}\nNew Hospital/Clinic: ${booking.hospital_clinic || 'Unknown'}\nNew Location: ${booking.ot_location}\n\nWe are contacting anaesthetists for the new date/time. You will be notified once confirmed.\n\nFor queries contact ${booking.secretary_phone}.`;
+
+      const sent = await sendWhatsApp(booking.surgeon.phone, surgeonBody);
+
+      if (sent) {
+        await supabase.from('whatsapp_log').insert({
+          booking_id: bookingId,
+          direction: 'outbound',
+          message_type: 'reschedule',
+          body: surgeonBody,
+          to_phone: booking.surgeon.phone,
+          sent_at: new Date().toISOString(),
+        });
+      }
+
+      return new Response(JSON.stringify({ success: sent }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: 'Unknown WhatsApp message type' }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
