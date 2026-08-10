@@ -26,8 +26,12 @@ export function BookingDetailPage() {
   const [addSearch, setAddSearch] = useState('');
   const [staged, setStaged] = useState<Anaesthetist[]>([]);
   const [sendingNew, setSendingNew] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleForm, setRescheduleForm] = useState({ surgery_date: '', surgery_time: '', hospital_clinic: '', ot_location: '' });
+  const [rescheduling, setRescheduling] = useState(false);
 
   const showCancel = searchParams.get('cancel') === '1';
+  const showRescheduleParam = searchParams.get('reschedule') === '1';
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -77,6 +81,18 @@ export function BookingDetailPage() {
   useEffect(() => {
     if (showCancel && booking) setShowCancelModal(true);
   }, [showCancel, booking]);
+
+  useEffect(() => {
+    if (showRescheduleParam && booking) {
+      setRescheduleForm({
+        surgery_date: booking.surgery_date,
+        surgery_time: booking.surgery_time,
+        hospital_clinic: booking.hospital_clinic,
+        ot_location: booking.ot_location,
+      });
+      setShowRescheduleModal(true);
+    }
+  }, [showRescheduleParam, booking]);
 
   useEffect(() => {
     if (!id) return;
@@ -195,6 +211,102 @@ export function BookingDetailPage() {
     fetchData();
   };
 
+  const handleReschedule = async () => {
+    if (!rescheduleForm.surgery_date || !rescheduleForm.surgery_time || !rescheduleForm.hospital_clinic.trim() || !rescheduleForm.ot_location.trim()) {
+      toast.error('Please fill in the new date, time, hospital and location');
+      return;
+    }
+    if (!booking || !user) return;
+
+    setRescheduling(true);
+
+    // Surgeon's standing preference order.
+    const { data: prefs } = await supabase
+      .from('anaesthetist_preferences')
+      .select('anaesthetist_id')
+      .eq('surgeon_id', booking.surgeon_id)
+      .order('rank');
+
+    // Previously-confirmed anaesthetist first, then the rest of the preference
+    // list with that one de-duplicated out.
+    const previouslyConfirmedId = booking.confirmed_anaesthetist_id;
+    const orderedIds: string[] = [];
+    if (previouslyConfirmedId) orderedIds.push(previouslyConfirmedId);
+    for (const p of prefs || []) {
+      if (p.anaesthetist_id !== previouslyConfirmedId) orderedIds.push(p.anaesthetist_id);
+    }
+
+    if (orderedIds.length === 0) {
+      toast.error('No anaesthetists to notify — set up preferences for this surgeon first');
+      setRescheduling(false);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({
+        surgery_date: rescheduleForm.surgery_date,
+        surgery_time: rescheduleForm.surgery_time,
+        hospital_clinic: rescheduleForm.hospital_clinic.trim(),
+        ot_location: rescheduleForm.ot_location.trim(),
+        status: 'cascade_running',
+        confirmed_anaesthetist_id: null,
+        confirmed_at: null,
+        rescheduled_at: new Date().toISOString(),
+        rescheduled_by: user.id,
+      })
+      .eq('id', booking.id);
+
+    if (updateError) {
+      toast.error('Failed to reschedule booking');
+      setRescheduling(false);
+      return;
+    }
+
+    // Append new cascade steps (append-only convention: never delete old rows).
+    const maxRank = cascadeSteps.reduce((m, s) => Math.max(m, s.rank), 0);
+    const inserts = orderedIds.map((anaesthetist_id, i) => ({
+      booking_id: booking.id,
+      anaesthetist_id,
+      rank: maxRank + i + 1,
+      outcome: 'pending' as const,
+      cascade_context: 'reschedule' as const,
+    }));
+
+    const { error: insertError } = await supabase.from('cascade_steps').insert(inserts);
+    if (insertError) {
+      toast.error('Booking updated but the new cascade could not be started');
+      setRescheduling(false);
+      return;
+    }
+
+    // Start the cascade (booking row already holds the new values).
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cascade-engine`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ bookingId: booking.id, action: 'start' }),
+    });
+
+    // Notify the surgeon of the reschedule.
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ type: 'reschedule', bookingId: booking.id }),
+    });
+
+    toast.success('Case rescheduled. New WhatsApp cascade started and surgeon notified.');
+    setRescheduling(false);
+    setShowRescheduleModal(false);
+    setSearchParams({});
+    fetchData();
+  };
+
   if (loading || !booking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -253,14 +365,32 @@ export function BookingDetailPage() {
             )}
           </div>
 
-          {booking.status !== 'cancelled' && (
-            <button
-              onClick={() => setShowCancelModal(true)}
-              className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
-            >
-              <XCircle className="w-3.5 h-3.5" /> Cancel case
-            </button>
-          )}
+          <div className="mt-4 flex gap-2">
+            {booking.status === 'confirmed' && (
+              <button
+                onClick={() => {
+                  setRescheduleForm({
+                    surgery_date: booking.surgery_date,
+                    surgery_time: booking.surgery_time,
+                    hospital_clinic: booking.hospital_clinic,
+                    ot_location: booking.ot_location,
+                  });
+                  setShowRescheduleModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#3C3489] border border-[#3C3489]/30 rounded-lg hover:bg-[#EEEDFE]"
+              >
+                <RotateCw className="w-3.5 h-3.5" /> Reschedule
+              </button>
+            )}
+            {booking.status !== 'cancelled' && (
+              <button
+                onClick={() => setShowCancelModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+              >
+                <XCircle className="w-3.5 h-3.5" /> Cancel case
+              </button>
+            )}
+          </div>
         </Card>
 
         {/* Cascade exhausted: add anaesthetist */}
@@ -447,6 +577,89 @@ export function BookingDetailPage() {
                 className="flex-1 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
                 {cancelling ? 'Cancelling...' : 'Cancel case and notify via WhatsApp'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule modal */}
+      {showRescheduleModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={() => { setShowRescheduleModal(false); setSearchParams({}); }}>
+          <div className="bg-white rounded-xl w-full max-w-md p-5" style={{ borderRadius: 12 }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-10 h-10 rounded-full bg-[#EEEDFE] flex items-center justify-center">
+                <RotateCw className="w-5 h-5 text-[#3C3489]" />
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900">Reschedule this case?</h3>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-3 mb-4 text-xs text-gray-600">
+              <p><strong>{booking.patient_initials}, {booking.patient_age} yrs</strong> · {booking.procedure}</p>
+              <p>Currently: {formatDate(booking.surgery_date)} · {formatTime(booking.surgery_time)} · {booking.ot_location}</p>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-3">
+              A fresh WhatsApp cascade will be sent for the new details — starting with{' '}
+              {booking.confirmed_anaesthetist ? `Dr ${booking.confirmed_anaesthetist.full_name}` : 'the previously confirmed anaesthetist'}, then the rest of the surgeon's preference list. The surgeon will also be notified.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">New date *</label>
+                <input
+                  type="date"
+                  value={rescheduleForm.surgery_date}
+                  onChange={(e) => setRescheduleForm({ ...rescheduleForm, surgery_date: e.target.value })}
+                  className="form-input"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">New time *</label>
+                <input
+                  type="time"
+                  value={rescheduleForm.surgery_time}
+                  onChange={(e) => setRescheduleForm({ ...rescheduleForm, surgery_time: e.target.value })}
+                  className="form-input"
+                />
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Hospital / Clinic *</label>
+              <input
+                type="text"
+                value={rescheduleForm.hospital_clinic}
+                onChange={(e) => setRescheduleForm({ ...rescheduleForm, hospital_clinic: e.target.value })}
+                placeholder="Mount Novena Hospital"
+                className="form-input"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Location *</label>
+              <input
+                type="text"
+                value={rescheduleForm.ot_location}
+                onChange={(e) => setRescheduleForm({ ...rescheduleForm, ot_location: e.target.value })}
+                placeholder="Main OT"
+                className="form-input"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowRescheduleModal(false); setSearchParams({}); }}
+                className="flex-1 py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
+              >
+                Go back
+              </button>
+              <button
+                onClick={handleReschedule}
+                disabled={rescheduling || !rescheduleForm.surgery_date || !rescheduleForm.surgery_time || !rescheduleForm.hospital_clinic.trim() || !rescheduleForm.ot_location.trim()}
+                className="flex-1 py-2.5 text-sm font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670] disabled:opacity-50"
+              >
+                {rescheduling ? 'Rescheduling...' : 'Reschedule and notify via WhatsApp'}
               </button>
             </div>
           </div>

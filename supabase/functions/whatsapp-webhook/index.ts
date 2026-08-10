@@ -1,4 +1,4 @@
-import { sendWhatsApp, formatDate, formatTime, anaesthesiaLabel, createSupabaseClient, stripWhatsAppPrefix, buildCaseRequestBody } from '../_shared/whatsapp.ts';
+import { sendWhatsApp, formatDate, formatTime, anaesthesiaLabel, createSupabaseClient, stripWhatsAppPrefix, buildCaseRequestBody, buildRescheduleRequestBody } from '../_shared/whatsapp.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -250,8 +250,12 @@ Deno.serve(async (req: Request) => {
             expires_at: expires,
           }).eq('id', nextStep.id);
 
-          // Send case request to next anaesthetist
-          const reqBody = buildCaseRequestBody(booking, 5);
+          // Send case request to next anaesthetist — reschedule-flavoured if this
+          // step belongs to a reschedule round.
+          const isReschedule = nextStep.cascade_context === 'reschedule';
+          const reqBody = isReschedule
+            ? buildRescheduleRequestBody(booking, 5)
+            : buildCaseRequestBody(booking, 5);
 
           const sent = await sendWhatsApp(nextStep.anaesthetist.phone, reqBody);
           if (sent) {
@@ -259,7 +263,7 @@ Deno.serve(async (req: Request) => {
               booking_id: booking.id,
               anaesthetist_id: nextStep.anaesthetist.id,
               direction: 'outbound',
-              message_type: 'request',
+              message_type: isReschedule ? 'reschedule_request' : 'request',
               body: reqBody,
               to_phone: nextStep.anaesthetist.phone,
               sent_at: now,

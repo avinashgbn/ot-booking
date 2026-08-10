@@ -14,7 +14,9 @@ export type WhatsAppMessageType =
   | 'cancellation'
   | 'cancellation_ack'
   | 'invalid_reply'
-  | 'release';
+  | 'release'
+  | 'reschedule_request'
+  | 'reschedule';
 
 export type AnaesthesiaType = 'up_to_anaesthetist' | 'GA' | 'regional' | 'sedation';
 
@@ -88,6 +90,8 @@ export interface Booking {
   cancelled_by: string | null;
   cancel_acknowledged: boolean;
   cancel_acknowledged_at: string | null;
+  rescheduled_at: string | null;
+  rescheduled_by: string | null;
   secretary_phone: string | null;
   created_at: string;
   surgeon?: User;
@@ -104,6 +108,7 @@ export interface CascadeStep {
   expires_at: string | null;
   outcome: CascadeOutcome;
   responded_at: string | null;
+  cascade_context: 'reschedule' | null;
   created_at: string;
   anaesthetist?: Anaesthetist;
 }

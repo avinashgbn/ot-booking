@@ -113,6 +113,36 @@ export function buildCaseRequestBody(booking: any, windowMinutes: number): strin
   ].join('\n');
 }
 
+// Mirrors buildCaseRequestBody but with rescheduled framing. The booking row's
+// surgery_date/time/hospital_clinic/ot_location already hold the NEW values by
+// the time this runs (the client updates the booking before starting the cascade).
+export function buildRescheduleRequestBody(booking: any, windowMinutes: number): string {
+  const anaesPrefs = (booking.anaesthesia_preferences || []).map(anaesthesiaLabel).join(' or ');
+  const admin = booking.practice?.admin;
+
+  return [
+    'This case has been RESCHEDULED. Please review the updated details:',
+    '',
+    `Patient: ${booking.patient_initials}, ${booking.patient_age} yrs`,
+    `Surgery: ${booking.procedure}`,
+    `Surgeon: Dr ${booking.surgeon?.full_name || 'Unknown'}`,
+    `New Date: ${formatDate(booking.surgery_date)}`,
+    `New Time: ${formatTime(booking.surgery_time)}`,
+    `Duration: ${booking.duration_hours} hrs`,
+    `New Hospital/Clinic: ${booking.hospital_clinic || 'Unknown'}`,
+    `New Location: ${booking.ot_location}`,
+    `Anaesthesia: ${anaesPrefs}`,
+    `Booking Clinic: ${booking.practice?.name || 'Unknown'}`,
+    `Name: ${admin?.full_name || 'Unknown'}`,
+    `WhatsApp Number: ${admin?.phone || 'Unknown'}`,
+    '',
+    'Reply 1 to ACCEPT',
+    'Reply 2 to DECLINE',
+    '',
+    `Reply within ${windowMinutes} minutes.`,
+  ].join('\n');
+}
+
 export function createSupabaseClient() {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

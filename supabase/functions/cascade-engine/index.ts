@@ -1,4 +1,4 @@
-import { sendWhatsApp, formatDate, buildCaseRequestBody, createSupabaseClient } from '../_shared/whatsapp.ts';
+import { sendWhatsApp, formatDate, buildCaseRequestBody, buildRescheduleRequestBody, createSupabaseClient } from '../_shared/whatsapp.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,8 +12,11 @@ const BOOKING_CASCADE_SELECT = `
   practice:practices!bookings_practice_id_fkey(*, admin:users!practices_admin_user_id_fkey(*))
 `;
 
-async function sendCaseRequest(supabase: any, booking: any, anaesthetist: any, windowMinutes: number): Promise<void> {
-  const body = buildCaseRequestBody(booking, windowMinutes);
+async function sendCaseRequest(supabase: any, booking: any, anaesthetist: any, windowMinutes: number, cascadeContext: string | null): Promise<void> {
+  const isReschedule = cascadeContext === 'reschedule';
+  const body = isReschedule
+    ? buildRescheduleRequestBody(booking, windowMinutes)
+    : buildCaseRequestBody(booking, windowMinutes);
 
   const sent = await sendWhatsApp(anaesthetist.phone, body);
 
@@ -22,7 +25,7 @@ async function sendCaseRequest(supabase: any, booking: any, anaesthetist: any, w
       booking_id: booking.id,
       anaesthetist_id: anaesthetist.id,
       direction: 'outbound',
-      message_type: 'request',
+      message_type: isReschedule ? 'reschedule_request' : 'request',
       body,
       to_phone: anaesthetist.phone,
       sent_at: new Date().toISOString(),
@@ -64,7 +67,7 @@ async function startCascade(supabase: any, bookingId: string): Promise<void> {
       expires_at: expires.toISOString(),
     }).eq('id', firstStep.id);
 
-    await sendCaseRequest(supabase, booking, firstStep.anaesthetist, 5);
+    await sendCaseRequest(supabase, booking, firstStep.anaesthetist, 5, firstStep.cascade_context);
   } else {
     // Simultaneous: notify all at once
     const now = new Date();
@@ -76,7 +79,7 @@ async function startCascade(supabase: any, bookingId: string): Promise<void> {
         expires_at: expires.toISOString(),
       }).eq('id', step.id);
 
-      await sendCaseRequest(supabase, booking, step.anaesthetist, 8);
+      await sendCaseRequest(supabase, booking, step.anaesthetist, 8, step.cascade_context);
     }
   }
 }
@@ -125,7 +128,7 @@ async function checkExpirations(supabase: any): Promise<void> {
           expires_at: expires,
         }).eq('id', nextStep.id);
 
-        await sendCaseRequest(supabase, step.booking, nextStep.anaesthetist, 5);
+        await sendCaseRequest(supabase, step.booking, nextStep.anaesthetist, 5, nextStep.cascade_context);
       } else {
         // All exhausted with no acceptance — flag for the secretary instead of looking unstarted
         await supabase.from('bookings').update({ status: 'all_declined' }).eq('id', step.booking_id);
