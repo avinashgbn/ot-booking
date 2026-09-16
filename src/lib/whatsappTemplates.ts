@@ -312,7 +312,7 @@ For queries contact {{13}}.`,
     name: 'ot_cascade_timeout_reminder',
     category: 'UTILITY',
     variableCount: 6,
-    description: 'Nudge to the currently-notified anaesthetist before their cascade response window closes. Not sent today — needs wiring in cascade-engine.',
+    description: 'Nudge to the currently-notified anaesthetist before their cascade response window closes. Wired as a freeform send in cascade-engine (checkExpirations); this Content Template exists for when a Meta-approved business-initiated send is needed instead.',
     envVar: 'TWILIO_TEMPLATE_SID_CASCADE_TIMEOUT_REMINDER',
     variables: {
       '{{1}}': 'Patient name/initials',

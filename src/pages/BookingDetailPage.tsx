@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { SurgeonBadge, AnaesthetistBadge, StatusBadge } from '@/components/Badges';
 import { formatDate, formatTime, formatDateTime, anaesthesiaLabel } from '@/lib/utils';
+import { startCascadeEngine } from '@/lib/cascadeEngine';
 import type { Booking, CascadeStep, WhatsAppLog, User, Anaesthetist } from '@/types';
 import {
   ArrowLeft, Calendar, Clock, MapPin, XCircle, Send, AlertTriangle, CheckCircle, RotateCw, Search, Plus, X
@@ -153,16 +154,13 @@ export function BookingDetailPage() {
       return;
     }
 
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cascade-engine`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ bookingId: booking.id, action: 'start' }),
-    });
+    const cascadeStarted = await startCascadeEngine(booking.id);
 
-    toast.success('New case request sent via WhatsApp');
+    if (cascadeStarted) {
+      toast.success('New case request sent via WhatsApp');
+    } else {
+      toast.error('Anaesthetist added, but the WhatsApp request may be delayed — it will retry automatically.');
+    }
     setStaged([]);
     setAddSearch('');
     setSendingNew(false);
@@ -286,26 +284,34 @@ export function BookingDetailPage() {
     }
 
     // Start the cascade (booking row already holds the new values).
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cascade-engine`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ bookingId: booking.id, action: 'start' }),
-    });
+    const cascadeStarted = await startCascadeEngine(booking.id);
 
     // Notify the surgeon of the reschedule.
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ type: 'reschedule', bookingId: booking.id }),
-    });
+    let surgeonNotified = true;
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ type: 'reschedule', bookingId: booking.id }),
+      });
+      surgeonNotified = response.ok;
+    } catch (err) {
+      console.error('send-whatsapp reschedule notice failed', err);
+      surgeonNotified = false;
+    }
 
-    toast.success('Case rescheduled. New WhatsApp cascade started and surgeon notified.');
+    if (cascadeStarted && surgeonNotified) {
+      toast.success('Case rescheduled. New WhatsApp cascade started and surgeon notified.');
+    } else if (!cascadeStarted && !surgeonNotified) {
+      toast.error('Case rescheduled, but the cascade and surgeon notice may be delayed — the cascade will retry automatically.');
+    } else if (!cascadeStarted) {
+      toast.error('Case rescheduled and surgeon notified, but the WhatsApp cascade may be delayed — it will retry automatically.');
+    } else {
+      toast.error('Case rescheduled and cascade started, but the surgeon may not have been notified.');
+    }
     setRescheduling(false);
     setShowRescheduleModal(false);
     setSearchParams({});

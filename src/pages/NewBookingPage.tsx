@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { AnaesthetistBadge, SurgeonBadge } from '@/components/Badges';
 import { normalisePhone, anaesthesiaLabel } from '@/lib/utils';
+import { startCascadeEngine } from '@/lib/cascadeEngine';
 import type { User, Anaesthetist, AnaesthetistPreference, CascadeMode, AnaesthesiaType } from '@/types';
 import {
   ArrowLeft, ArrowUp, ArrowDown, X, Search, Check, ChevronRight, Layers, Zap
@@ -198,16 +199,13 @@ export function NewBookingPage() {
       return;
     }
 
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cascade-engine`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ bookingId: booking.id, action: 'start' }),
-    });
+    const cascadeStarted = await startCascadeEngine(booking.id);
 
-    toast.success('Booking created. Cascade started.');
+    if (cascadeStarted) {
+      toast.success('Booking created. Cascade started.');
+    } else {
+      toast.error('Booking created, but the first WhatsApp request may be delayed — it will retry automatically.');
+    }
     setSubmitting(false);
     navigate('/dashboard');
   };
