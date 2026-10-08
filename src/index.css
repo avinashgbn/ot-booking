@@ -2,8 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --brand: #0e7490;
+  --brand-strong: #0b5c72;
+  --brand-tint: #e6f4f7;
+
+  --bg: #eef2f5;
+  --surface: #ffffff;
+  --surface-2: #f6f8fa;
+  --line: #e3e9ee;
+
+  --ink: #0f1e26;
+  --ink-2: #3b4a54;
+  --muted: #5b6b76;
+  --muted-2: #87949d;
+
+  --ok: #0f7a52;
+  --ok-bg: #dcf4e8;
+  --ok-line: #b6e6cf;
+
+  --warn: #a85a06;
+  --warn-bg: #fdeccd;
+  --warn-line: #f3d089;
+
+  --crit: #b3261e;
+  --crit-bg: #fde5e2;
+  --crit-line: #f5c0ba;
+
+  --neut: #586873;
+  --neut-bg: #eef2f5;
+  --neut-line: #dbe3e9;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink-2);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+/* Headings, controls and labels read as UI chrome, not body copy. */
+h1, h2, h3, h4, h5, h6, button, label {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--ink);
+}
+
 @layer components {
   .form-input {
-    @apply w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400 transition-colors;
+    @apply w-full px-3 py-2.5 text-sm rounded-sm outline-none transition-colors;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+  }
+  .form-input:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-tint);
+  }
+
+  /* Stat-tile numbers and other aligned figure columns. */
+  .figure {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
   }
 }

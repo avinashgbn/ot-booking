@@ -45,22 +45,22 @@ export function SuperadminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 mb-8 justify-center">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-sm bg-ink flex items-center justify-center">
             <Activity className="w-5 h-5 text-white" strokeWidth={2.5} />
           </div>
-          <span className="text-xl font-semibold text-gray-900">OT Booking</span>
+          <span className="text-xl font-semibold text-ink">OT Booking</span>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6" style={{ borderRadius: 12 }}>
-          <h1 className="text-lg font-semibold text-gray-900 mb-1">Superadmin login</h1>
-          <p className="text-sm text-gray-500 mb-6">Platform administration access</p>
+        <div className="bg-surface rounded border border-line p-6 shadow-sm">
+          <h1 className="text-lg font-semibold text-ink mb-1">Superadmin login</h1>
+          <p className="text-sm text-muted mb-6">Platform administration access</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-ink-2 mb-1.5">Email</label>
               <input
                 type="email"
                 value={email}
@@ -71,7 +71,7 @@ export function SuperadminLoginPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-ink-2 mb-1.5">Password</label>
               <input
                 type="password"
                 value={password}
@@ -84,7 +84,7 @@ export function SuperadminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full bg-ink text-white py-2.5 rounded-sm text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? 'Signing in...' : 'Sign in'}
               {!loading && <ArrowRight className="w-4 h-4" />}
@@ -92,7 +92,7 @@ export function SuperadminLoginPage() {
           </form>
 
           <div className="mt-4 text-center">
-            <Link to="/login" className="text-xs text-gray-400 hover:text-gray-600">
+            <Link to="/login" className="text-xs text-muted-2 hover:text-muted">
               Staff login
             </Link>
           </div>

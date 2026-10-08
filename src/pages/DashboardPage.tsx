@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { BookingCard } from '@/components/BookingCard';
-import { SurgeonBadge } from '@/components/Badges';
 import { initials } from '@/lib/utils';
 import type { Booking, CascadeStep, User, Anaesthetist, Practice } from '@/types';
 import { Plus, Settings, Search, AlertTriangle, LogOut } from 'lucide-react';
@@ -201,7 +200,7 @@ export function DashboardPage() {
 
   const statusFilters: { key: StatusFilter; label: string }[] = [
     { key: 'all', label: 'All' },
-    { key: 'cascade_running', label: 'Cascade running' },
+    { key: 'cascade_running', label: 'Request sent' },
     { key: 'confirmed', label: 'Confirmed' },
     { key: 'all_declined', label: 'All declined' },
     { key: 'cancelled', label: 'Cancelled' },
@@ -213,37 +212,37 @@ export function DashboardPage() {
     : `All upcoming cases — ${practice?.name || ''}`;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-bg">
       {/* Top bar */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-surface border-b border-line sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">{pageTitle}</h1>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <h1 className="text-base font-semibold text-ink">{pageTitle}</h1>
+            <p className="text-xs text-muted mt-0.5">
               {today.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' })} · {user?.full_name}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/dashboard/new-booking')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#3C3489] text-white text-sm font-medium rounded-lg hover:bg-[#2D2670] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-brand text-white text-sm font-medium rounded-sm hover:bg-brand-strong transition-colors"
             >
               <Plus className="w-4 h-4" /> New booking
             </button>
             <button
               onClick={() => navigate('/dashboard/settings')}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg"
+              className="p-2 text-muted hover:text-ink-2 hover:bg-surface-2 rounded-sm"
             >
               <Settings className="w-5 h-5" />
             </button>
             <button
               onClick={handleSignOut}
               title="Log off"
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg"
+              className="p-2 text-muted hover:text-ink-2 hover:bg-surface-2 rounded-sm"
             >
               <LogOut className="w-5 h-5" />
             </button>
-            <div className="w-9 h-9 rounded-full bg-[#EEEDFE] text-[#3C3489] flex items-center justify-center text-xs font-medium">
+            <div className="w-9 h-9 rounded-full bg-brand-tint text-brand flex items-center justify-center text-xs font-medium">
               {user ? initials(user.full_name) : ''}
             </div>
           </div>
@@ -253,10 +252,10 @@ export function DashboardPage() {
       <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Stats row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <StatCard label="Total upcoming" value={stats.total} />
-          <StatCard label="Cascade running" value={stats.cascade} accent="amber" />
-          <StatCard label="Needs attention" value={stats.attention} accent="orange" icon={<AlertTriangle className="w-3.5 h-3.5" />} />
-          <StatCard label="Confirmed this week" value={stats.confirmedThisWeek} accent="green" />
+          <StatCard label="Total upcoming" value={stats.total} stripe="brand" />
+          <StatCard label="Request sent" value={stats.cascade} accent="warn" stripe="warn" />
+          <StatCard label="Needs attention" value={stats.attention} accent="crit" stripe="crit" icon={<AlertTriangle className="w-3.5 h-3.5" />} />
+          <StatCard label="Confirmed this week" value={stats.confirmedThisWeek} accent="ok" stripe="ok" />
         </div>
 
         {/* Surgeon filter pills */}
@@ -266,8 +265,8 @@ export function DashboardPage() {
               onClick={() => setSelectedSurgeon(null)}
               className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
                 selectedSurgeon === null
-                  ? 'bg-gray-900 text-white border-gray-900'
-                  : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  ? 'bg-ink text-white border-ink'
+                  : 'bg-surface text-ink-2 border-line hover:bg-surface-2'
               }`}
             >
               All surgeons
@@ -278,11 +277,11 @@ export function DashboardPage() {
                 onClick={() => setSelectedSurgeon(s.id)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors flex items-center gap-1.5 ${
                   selectedSurgeon === s.id
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    ? 'bg-ink text-white border-ink'
+                    : 'bg-surface text-ink-2 border-line hover:bg-surface-2'
                 }`}
               >
-                <SurgeonBadge />
+                <span className="w-1.5 h-1.5 rounded-full bg-brand flex-shrink-0" />
                 Dr {s.full_name}
               </button>
             ))}
@@ -298,8 +297,8 @@ export function DashboardPage() {
                 onClick={() => setStatusFilter(f.key)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-full border whitespace-nowrap transition-colors ${
                   statusFilter === f.key
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    ? 'bg-ink text-white border-ink'
+                    : 'bg-surface text-ink-2 border-line hover:bg-surface-2'
                 }`}
               >
                 {f.label}
@@ -307,22 +306,22 @@ export function DashboardPage() {
             ))}
           </div>
           <div className="relative flex-1 sm:max-w-xs sm:ml-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search cases..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-200 rounded-full outline-none focus:border-gray-400"
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-surface-2 border border-line rounded-full outline-none focus:border-brand focus:ring-[3px] focus:ring-brand-tint transition-colors"
             />
           </div>
         </div>
 
         {/* Booking cards */}
         {loading ? (
-          <div className="text-center text-sm text-gray-400 py-12">Loading bookings...</div>
+          <div className="text-center text-sm text-muted-2 py-12">Loading bookings...</div>
         ) : filteredBookings.length === 0 ? (
-          <div className="text-center text-sm text-gray-400 py-12">
+          <div className="text-center text-sm text-muted-2 py-12">
             No bookings found. Click "New booking" to create one.
           </div>
         ) : (
@@ -345,18 +344,29 @@ export function DashboardPage() {
   );
 }
 
-function StatCard({ label, value, accent, icon }: { label: string; value: number; accent?: string; icon?: React.ReactNode }) {
+function StatCard({ label, value, accent, stripe, icon }: {
+  label: string; value: number; accent?: 'ok' | 'warn' | 'crit'; stripe: 'brand' | 'ok' | 'warn' | 'crit'; icon?: React.ReactNode;
+}) {
   const colorMap: Record<string, string> = {
-    amber: 'text-amber-600',
-    orange: 'text-orange-600',
-    green: 'text-green-600',
+    ok: 'text-ok',
+    warn: 'text-warn',
+    crit: 'text-crit',
+  };
+  const stripeMap: Record<string, string> = {
+    brand: 'bg-brand',
+    ok: 'bg-ok',
+    warn: 'bg-warn',
+    crit: 'bg-crit',
   };
   return (
-    <div className="bg-white border border-gray-200 p-4" style={{ borderRadius: 12, borderWidth: 0.5 }}>
-      <p className="text-xs text-gray-500 flex items-center gap-1">
-        {icon} {label}
-      </p>
-      <p className={`text-2xl font-semibold mt-1 ${accent ? colorMap[accent] : 'text-gray-900'}`}>{value}</p>
+    <div className="bg-surface border border-line rounded shadow-sm overflow-hidden flex">
+      <div className={`w-1 flex-shrink-0 ${stripeMap[stripe]}`} />
+      <div className="flex-1 p-4">
+        <p className="text-xs text-muted flex items-center gap-1">
+          {icon} {label}
+        </p>
+        <p className={`figure text-2xl font-semibold mt-1 ${accent ? colorMap[accent] : 'text-ink'}`}>{value}</p>
+      </div>
     </div>
   );
 }

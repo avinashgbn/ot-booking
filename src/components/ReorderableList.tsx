@@ -80,16 +80,16 @@ export function ReorderableList<T>({ items, onReorder, getKey, renderItem }: Reo
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
-            className={`flex items-center gap-2 p-3 border rounded-lg bg-white transition-all duration-150 touch-none ${
+            className={`flex items-center gap-2 p-3 border rounded-sm bg-surface transition-all duration-150 touch-none ${
               isDragging ? 'opacity-50 shadow-lg scale-[1.02] z-10' : ''
-            } ${isOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200'} ${
+            } ${isOver ? 'border-brand bg-brand-tint' : 'border-line'} ${
               pressing ? 'cursor-grabbing' : 'cursor-grab'
             }`}
             style={{ touchAction: 'none' }}
           >
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
-              <span className="text-sm font-medium text-gray-400 w-6 flex-shrink-0">{index + 1}</span>
+              <GripVertical className="w-4 h-4 text-muted-2 flex-shrink-0" />
+              <span className="figure text-sm font-medium text-muted-2 w-6 flex-shrink-0">{index + 1}</span>
               <div className="flex-1 min-w-0">{renderItem(item, index)}</div>
             </div>
           </div>

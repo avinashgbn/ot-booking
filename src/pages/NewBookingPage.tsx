@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
-import { AnaesthetistBadge, SurgeonBadge } from '@/components/Badges';
+import { RoleName } from '@/components/Badges';
 import { normalisePhone, anaesthesiaLabel } from '@/lib/utils';
+import { startCascadeEngine } from '@/lib/cascadeEngine';
 import type { User, Anaesthetist, AnaesthetistPreference, CascadeMode, AnaesthesiaType } from '@/types';
 import {
   ArrowLeft, ArrowUp, ArrowDown, X, Search, Check, ChevronRight, Layers, Zap
@@ -193,21 +194,18 @@ export function NewBookingPage() {
       .insert(stepInserts);
 
     if (stepsError) {
-      toast.error('Failed to set up cascade');
+      toast.error('Failed to set up request');
       setSubmitting(false);
       return;
     }
 
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cascade-engine`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ bookingId: booking.id, action: 'start' }),
-    });
+    const cascadeStarted = await startCascadeEngine(booking.id);
 
-    toast.success('Booking created. Cascade started.');
+    if (cascadeStarted) {
+      toast.success('Booking created. Request started.');
+    } else {
+      toast.error('Booking created, but the first WhatsApp request may be delayed — it will retry automatically.');
+    }
     setSubmitting(false);
     navigate('/dashboard');
   };
@@ -266,13 +264,13 @@ export function NewBookingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div className="min-h-screen bg-bg">
+      <header className="bg-surface border-b border-line sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate('/dashboard')} className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg">
+          <button onClick={() => navigate('/dashboard')} className="p-1.5 text-muted hover:text-ink-2 hover:bg-surface-2 rounded-sm">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-base font-semibold text-gray-900">New booking</h1>
+          <h1 className="text-base font-semibold text-ink">New booking</h1>
         </div>
       </header>
 
@@ -367,33 +365,33 @@ export function NewBookingPage() {
               <label
                 key={opt.key}
                 onClick={() => toggleAnaesthesia(opt.key)}
-                className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                className={`flex items-center gap-3 p-3 border rounded-sm cursor-pointer transition-colors ${
                   form.anaesthesia_preferences.includes(opt.key)
-                    ? 'border-[#3C3489] bg-[#EEEDFE]/30'
-                    : 'border-gray-200 hover:bg-gray-50'
+                    ? 'border-brand bg-brand-tint/30'
+                    : 'border-line hover:bg-surface-2'
                 }`}
               >
                 <div className={`w-5 h-5 rounded border flex items-center justify-center ${
                   form.anaesthesia_preferences.includes(opt.key)
-                    ? 'bg-[#3C3489] border-[#3C3489]'
-                    : 'border-gray-300'
+                    ? 'bg-brand border-brand'
+                    : 'border-line'
                 }`}>
                   {form.anaesthesia_preferences.includes(opt.key) && <Check className="w-3.5 h-3.5 text-white" />}
                 </div>
-                <span className="text-sm text-gray-900">{opt.label}</span>
+                <span className="text-sm text-ink">{opt.label}</span>
               </label>
             ))}
           </div>
         </Section>
 
-        {/* Section 4: Cascade mode */}
-        <Section title="Cascade mode" number={4}>
+        {/* Section 4: In what order to book anaesthetist */}
+        <Section title="In what order to book anaesthetist" number={4}>
           <div className="grid grid-cols-2 gap-3">
             <CascadeCard
               selected={form.cascade_mode === 'sequential'}
               onClick={() => setForm({ ...form, cascade_mode: 'sequential' })}
               icon={<Layers className="w-5 h-5" />}
-              title="Sequential"
+              title="Ranked order"
               description="Contact anaesthetists one at a time in ranked order. 5-minute reply window each."
               badge="Ranked order"
             />
@@ -401,15 +399,15 @@ export function NewBookingPage() {
               selected={form.cascade_mode === 'simultaneous'}
               onClick={() => setForm({ ...form, cascade_mode: 'simultaneous' })}
               icon={<Zap className="w-5 h-5" />}
-              title="Simultaneous blast"
+              title="Fastest fingers first"
               description="Message all 5 at once. 8-minute window. First to reply 1 wins. Others auto-released."
               badge="Fastest first"
             />
           </div>
         </Section>
 
-        {/* Section 5: Anaesthetist preference list */}
-        <Section title="Anaesthetist preference list" number={5}>
+        {/* Section 5: List of Surgeons favourite Anaesthetist */}
+        <Section title="List of Surgeons favourite Anaesthetist" number={5}>
           <Field label="Surgeon">
             <select
               value={selectedSurgeonId}
@@ -426,17 +424,17 @@ export function NewBookingPage() {
           {selectedSurgeonId && (
             <div className="space-y-2">
               {preferences.map((pref, i) => (
-                <div key={pref.id} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg">
-                  <span className="text-sm font-medium text-gray-400 w-6">{pref.rank}</span>
-                  <AnaesthetistBadge />
-                  <span className="text-sm text-gray-900 flex-1">Dr {pref.anaesthetist?.full_name || 'Unknown'}</span>
-                  <button type="button" onClick={() => movePreference(i, -1)} disabled={i === 0} className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30">
+                <div key={pref.id} className="flex items-center gap-2 p-3 border border-line rounded-sm">
+                  <span className="figure text-sm font-medium text-muted-2 w-6">{pref.rank}</span>
+                  <RoleName role="anaesthetist" name={`Dr ${pref.anaesthetist?.full_name || 'Unknown'}`} />
+                  <span className="flex-1" />
+                  <button type="button" onClick={() => movePreference(i, -1)} disabled={i === 0} className="p-1 text-muted-2 hover:text-ink-2 disabled:opacity-30">
                     <ArrowUp className="w-4 h-4" />
                   </button>
-                  <button type="button" onClick={() => movePreference(i, 1)} disabled={i === preferences.length - 1} className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30">
+                  <button type="button" onClick={() => movePreference(i, 1)} disabled={i === preferences.length - 1} className="p-1 text-muted-2 hover:text-ink-2 disabled:opacity-30">
                     <ArrowDown className="w-4 h-4" />
                   </button>
-                  <button type="button" onClick={() => removePreference(pref.id)} className="p-1 text-red-400 hover:text-red-600">
+                  <button type="button" onClick={() => removePreference(pref.id)} className="p-1 text-crit border border-crit-line rounded-sm bg-crit-bg hover:opacity-80">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -446,13 +444,13 @@ export function NewBookingPage() {
                 <button
                   type="button"
                   onClick={() => setShowDirectory(true)}
-                  className="w-full p-3 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:bg-gray-50"
+                  className="w-full p-3 border border-dashed border-line rounded-sm text-sm text-muted hover:border-brand hover:text-brand transition-colors"
                 >
                   + Add from directory
                 </button>
               )}
 
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-2">
                 System contacts in this order. Changes here only affect this booking — to update the saved list go to Settings.
               </p>
             </div>
@@ -464,16 +462,16 @@ export function NewBookingPage() {
           <button
             type="button"
             onClick={handleSaveDraft}
-            className="flex-1 py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
+            className="flex-1 py-2.5 text-sm font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2"
           >
             Save as draft
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="flex-1 py-2.5 text-sm font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670] disabled:opacity-50"
+            className="flex-1 py-2.5 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong disabled:opacity-50"
           >
-            {submitting ? 'Submitting...' : 'Submit and start cascade'}
+            {submitting ? 'Submitting...' : 'Submit and start request'}
           </button>
         </div>
       </form>
@@ -481,17 +479,17 @@ export function NewBookingPage() {
       {/* Directory modal */}
       {showDirectory && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={() => setShowDirectory(false)}>
-          <div className="bg-white rounded-xl w-full max-w-md max-h-[80vh] flex flex-col" style={{ borderRadius: 12 }} onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Add anaesthetist</h3>
+          <div className="bg-surface rounded w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-line">
+              <h3 className="text-sm font-semibold text-ink mb-3">Add anaesthetist</h3>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-2" />
                 <input
                   type="text"
                   value={directorySearch}
                   onChange={(e) => setDirectorySearch(e.target.value)}
                   placeholder="Search by name or hospital..."
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400"
+                  className="form-input pl-9"
                   autoFocus
                 />
               </div>
@@ -501,14 +499,13 @@ export function NewBookingPage() {
                 <button
                   key={a.id}
                   onClick={() => addFromDirectory(a)}
-                  className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-gray-50 text-left"
+                  className="w-full flex items-center gap-2 p-3 rounded-sm hover:bg-surface-2 text-left"
                 >
-                  <AnaesthetistBadge />
                   <div className="flex-1">
-                    <p className="text-sm text-gray-900">Dr {a.full_name}</p>
-                    <p className="text-xs text-gray-400">{a.hospitals?.join(', ') || 'No hospitals listed'}</p>
+                    <RoleName role="anaesthetist" name={`Dr ${a.full_name}`} />
+                    <p className="text-xs text-muted-2 mt-0.5">{a.hospitals?.join(', ') || 'No hospitals listed'}</p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
+                  <ChevronRight className="w-4 h-4 text-muted-2" />
                 </button>
               ))}
             </div>
@@ -521,15 +518,15 @@ export function NewBookingPage() {
 
 function Section({ title, number, subtitle, children }: { title: string; number: number; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-gray-200 p-5 space-y-4" style={{ borderRadius: 12, borderWidth: 0.5 }}>
+    <div className="bg-surface border border-line rounded p-5 space-y-4 shadow-sm">
       <div>
         <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded-full bg-[#EEEDFE] text-[#3C3489] flex items-center justify-center text-xs font-semibold">
+          <span className="figure w-6 h-6 rounded-full bg-brand-tint text-brand flex items-center justify-center text-xs font-semibold">
             {number}
           </span>
-          <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+          <h2 className="text-sm font-semibold text-ink">{title}</h2>
         </div>
-        {subtitle && <p className="text-xs text-gray-400 ml-8 mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-muted-2 ml-8 mt-0.5">{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -539,7 +536,7 @@ function Section({ title, number, subtitle, children }: { title: string; number:
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1.5">{label}</label>
+      <label className="block text-xs font-medium text-muted mb-1.5">{label}</label>
       {children}
     </div>
   );
@@ -552,19 +549,18 @@ function CascadeCard({ selected, onClick, icon, title, description, badge }: {
     <button
       type="button"
       onClick={onClick}
-      className={`p-4 border rounded-lg text-left transition-colors ${
-        selected ? 'border-[#3C3489] bg-[#EEEDFE]/30' : 'border-gray-200 hover:bg-gray-50'
+      className={`p-4 border rounded text-left transition-colors ${
+        selected ? 'border-brand bg-brand-tint/30' : 'border-line hover:bg-surface-2'
       }`}
-      style={{ borderRadius: 12 }}
     >
       <div className="flex items-center gap-2 mb-2">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selected ? 'bg-[#3C3489] text-white' : 'bg-gray-100 text-gray-500'}`}>
+        <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${selected ? 'bg-brand text-white' : 'bg-neut-bg text-neut'}`}>
           {icon}
         </div>
-        <span className="text-sm font-semibold text-gray-900">{title}</span>
+        <span className="text-sm font-semibold text-ink">{title}</span>
       </div>
-      <p className="text-xs text-gray-500 mb-2">{description}</p>
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+      <p className="text-xs text-muted mb-2">{description}</p>
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-neut-bg text-neut">
         {badge}
       </span>
     </button>

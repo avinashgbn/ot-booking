@@ -3,8 +3,10 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
-import { SurgeonBadge, AnaesthetistBadge, StatusBadge } from '@/components/Badges';
+import { StatusBadge, RoleName } from '@/components/Badges';
 import { formatDate, formatTime, formatDateTime, anaesthesiaLabel } from '@/lib/utils';
+import { statusGroup, statusGroupStripeClass } from '@/lib/status';
+import { startCascadeEngine } from '@/lib/cascadeEngine';
 import type { Booking, CascadeStep, WhatsAppLog, User, Anaesthetist } from '@/types';
 import {
   ArrowLeft, Calendar, Clock, MapPin, XCircle, Send, AlertTriangle, CheckCircle, RotateCw, Search, Plus, X
@@ -148,21 +150,18 @@ export function BookingDetailPage() {
       .update({ status: 'cascade_running' })
       .eq('id', booking.id);
     if (updateError) {
-      toast.error('Failed to restart cascade');
+      toast.error('Failed to restart request');
       setSendingNew(false);
       return;
     }
 
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cascade-engine`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ bookingId: booking.id, action: 'start' }),
-    });
+    const cascadeStarted = await startCascadeEngine(booking.id);
 
-    toast.success('New case request sent via WhatsApp');
+    if (cascadeStarted) {
+      toast.success('New case request sent via WhatsApp');
+    } else {
+      toast.error('Anaesthetist added, but the WhatsApp request may be delayed — it will retry automatically.');
+    }
     setStaged([]);
     setAddSearch('');
     setSendingNew(false);
@@ -280,32 +279,40 @@ export function BookingDetailPage() {
 
     const { error: insertError } = await supabase.from('cascade_steps').insert(inserts);
     if (insertError) {
-      toast.error('Booking updated but the new cascade could not be started');
+      toast.error('Booking updated but the new request could not be started');
       setRescheduling(false);
       return;
     }
 
     // Start the cascade (booking row already holds the new values).
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cascade-engine`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ bookingId: booking.id, action: 'start' }),
-    });
+    const cascadeStarted = await startCascadeEngine(booking.id);
 
     // Notify the surgeon of the reschedule.
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ type: 'reschedule', bookingId: booking.id }),
-    });
+    let surgeonNotified = true;
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ type: 'reschedule', bookingId: booking.id }),
+      });
+      surgeonNotified = response.ok;
+    } catch (err) {
+      console.error('send-whatsapp reschedule notice failed', err);
+      surgeonNotified = false;
+    }
 
-    toast.success('Case rescheduled. New WhatsApp cascade started and surgeon notified.');
+    if (cascadeStarted && surgeonNotified) {
+      toast.success('Case rescheduled. New WhatsApp request started and surgeon notified.');
+    } else if (!cascadeStarted && !surgeonNotified) {
+      toast.error('Case rescheduled, but the request and surgeon notice may be delayed — the request will retry automatically.');
+    } else if (!cascadeStarted) {
+      toast.error('Case rescheduled and surgeon notified, but the WhatsApp request may be delayed — it will retry automatically.');
+    } else {
+      toast.error('Case rescheduled and request started, but the surgeon may not have been notified.');
+    }
     setRescheduling(false);
     setShowRescheduleModal(false);
     setSearchParams({});
@@ -314,21 +321,22 @@ export function BookingDetailPage() {
 
   if (loading || !booking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-sm text-gray-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="text-sm text-muted-2">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div className="min-h-screen bg-bg">
+      <header className="bg-surface border-b border-line sticky top-0 z-10">
+        <div className={`h-1 ${statusGroupStripeClass(statusGroup(booking.status, booking.cancel_acknowledged))}`} />
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate('/dashboard')} className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg">
+          <button onClick={() => navigate('/dashboard')} className="p-1.5 text-muted hover:text-ink-2 hover:bg-surface-2 rounded-sm">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1">
-            <h1 className="text-base font-semibold text-gray-900">
+            <h1 className="text-base font-semibold text-ink">
               {booking.patient_initials}, {booking.patient_age} yrs · {booking.procedure}
             </h1>
             <div className="flex items-center gap-2 mt-0.5">
@@ -345,32 +353,32 @@ export function BookingDetailPage() {
             <InfoRow label="Patient" value={`${booking.patient_initials}, ${booking.patient_age} yrs`} />
             <InfoRow label="Procedure" value={booking.procedure} />
             <InfoRow label="Surgeon" value={
-              <span className="flex items-center gap-1"><SurgeonBadge /> Dr {booking.surgeon?.full_name || 'Unknown'}</span>
+              <RoleName role="surgeon" name={`Dr ${booking.surgeon?.full_name || 'Unknown'}`} />
             } />
             <InfoRow label="Hospital / Clinic" value={booking.hospital_clinic} />
             <InfoRow label="Location" value={booking.ot_location} />
             <InfoRow label="Date" value={formatDate(booking.surgery_date)} />
             <InfoRow label="Time" value={formatTime(booking.surgery_time)} />
             <InfoRow label="Duration" value={`${booking.duration_hours} hrs`} />
-            <InfoRow label="Cascade mode" value={<span className="capitalize">{booking.cascade_mode}</span>} />
+            <InfoRow label="How to contact" value={<span className="capitalize">{booking.cascade_mode}</span>} />
             <InfoRow label="Anaesthesia" value={booking.anaesthesia_preferences?.map(anaesthesiaLabel).join(', ') || '—'} />
             {booking.confirmed_anaesthetist && (
               <InfoRow label="Confirmed anaesthetist" value={
-                <span className="flex items-center gap-1"><AnaesthetistBadge /> Dr {booking.confirmed_anaesthetist.full_name}</span>
+                <RoleName role="anaesthetist" name={`Dr ${booking.confirmed_anaesthetist.full_name}`} />
               } />
             )}
             {booking.confirmed_at && (
               <InfoRow label="Confirmed at" value={formatDateTime(booking.confirmed_at)} />
             )}
             {booking.cancel_reason && (
-              <InfoRow label="Cancel reason" value={<span className="text-red-600">{booking.cancel_reason}</span>} />
+              <InfoRow label="Cancel reason" value={<span className="text-crit">{booking.cancel_reason}</span>} />
             )}
             {booking.cancelled_at && (
               <InfoRow label="Cancelled at" value={formatDateTime(booking.cancelled_at)} />
             )}
             {booking.previous_surgery_date && (
               <InfoRow label="Rescheduled from" value={
-                <span className="text-amber-600">
+                <span className="text-warn">
                   {formatDate(booking.previous_surgery_date)}
                   {booking.previous_surgery_time ? ` · ${formatTime(booking.previous_surgery_time)}` : ''}
                   {booking.previous_hospital_clinic ? ` · ${booking.previous_hospital_clinic}` : ''}
@@ -395,7 +403,7 @@ export function BookingDetailPage() {
                   });
                   setShowRescheduleModal(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#3C3489] border border-[#3C3489]/30 rounded-lg hover:bg-[#EEEDFE]"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand border border-brand/30 rounded-sm hover:bg-brand-tint"
               >
                 <RotateCw className="w-3.5 h-3.5" /> Reschedule
               </button>
@@ -403,7 +411,7 @@ export function BookingDetailPage() {
             {booking.status !== 'cancelled' && (
               <button
                 onClick={() => setShowCancelModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-crit border border-crit-line rounded-sm hover:bg-crit-bg"
               >
                 <XCircle className="w-3.5 h-3.5" /> Cancel case
               </button>
@@ -413,41 +421,39 @@ export function BookingDetailPage() {
 
         {/* Cascade exhausted: add anaesthetist */}
         {booking.status === 'all_declined' && (
-          <Card title="Cascade exhausted — add an anaesthetist">
+          <Card title="Request exhausted — add an anaesthetist">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <p className="text-xs font-medium text-gray-700 mb-2">Already asked</p>
+                <p className="text-xs font-medium text-ink-2 mb-2">Already asked</p>
                 <div className="space-y-2">
                   {[...cascadeSteps].sort((a, b) => a.rank - b.rank).map((step) => (
-                    <div key={step.id} className="flex items-center justify-between text-xs border border-gray-100 rounded-lg px-3 py-2">
-                      <span className="flex items-center gap-1.5">
-                        <AnaesthetistBadge /> Dr {step.anaesthetist?.full_name || 'Unknown'}
-                      </span>
-                      <span className="text-gray-500 capitalize">{step.outcome}</span>
+                    <div key={step.id} className="flex items-center justify-between text-xs border border-line rounded-sm px-3 py-2">
+                      <RoleName role="anaesthetist" name={`Dr ${step.anaesthetist?.full_name || 'Unknown'}`} />
+                      <span className="text-muted capitalize">{step.outcome}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div>
-                <p className="text-xs font-medium text-gray-700 mb-2">Add anaesthetist</p>
+                <p className="text-xs font-medium text-ink-2 mb-2">Add anaesthetist</p>
                 <div className="relative mb-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-2" />
                   <input
                     type="text"
                     value={addSearch}
                     onChange={(e) => setAddSearch(e.target.value)}
                     placeholder="Search by name or hospital..."
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-gray-400"
+                    className="form-input pl-9"
                   />
                 </div>
 
                 {staged.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {staged.map((a) => (
-                      <span key={a.id} className="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-full text-xs bg-[#EEEDFE] text-[#3C3489]">
+                      <span key={a.id} className="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-full text-xs bg-brand-tint text-brand">
                         Dr {a.full_name}
-                        <button type="button" onClick={() => removeStaged(a.id)} className="p-0.5 hover:text-red-600">
+                        <button type="button" onClick={() => removeStaged(a.id)} className="p-0.5 hover:text-crit">
                           <X className="w-3 h-3" />
                         </button>
                       </span>
@@ -457,7 +463,7 @@ export function BookingDetailPage() {
 
                 <div className="max-h-48 overflow-y-auto space-y-1 mb-3">
                   {available.length === 0 ? (
-                    <p className="text-xs text-gray-400 py-2">
+                    <p className="text-xs text-muted-2 py-2">
                       {addSearch.trim() ? 'No match' : 'No other anaesthetists available — everyone in the directory has already been asked.'}
                     </p>
                   ) : (
@@ -466,10 +472,10 @@ export function BookingDetailPage() {
                         key={a.id}
                         type="button"
                         onClick={() => addStaged(a)}
-                        className="w-full flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-gray-50 text-left"
+                        className="w-full flex items-center justify-between gap-2 p-2 rounded-sm hover:bg-surface-2 text-left"
                       >
-                        <span className="text-xs text-gray-900">Dr {a.full_name}</span>
-                        <Plus className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="text-xs text-ink">Dr {a.full_name}</span>
+                        <Plus className="w-3.5 h-3.5 text-muted-2" />
                       </button>
                     ))
                   )}
@@ -479,7 +485,7 @@ export function BookingDetailPage() {
                   type="button"
                   onClick={handleSendNewRequests}
                   disabled={staged.length === 0 || sendingNew}
-                  className="w-full py-2 text-xs font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670] disabled:opacity-50"
+                  className="w-full py-2 text-xs font-medium text-white bg-brand rounded-sm hover:bg-brand-strong disabled:opacity-50"
                 >
                   {sendingNew
                     ? 'Sending...'
@@ -493,26 +499,23 @@ export function BookingDetailPage() {
         )}
 
         {/* Cascade timeline */}
-        <Card title="Cascade timeline">
+        <Card title="Request timeline">
           {cascadeSteps.length === 0 ? (
-            <p className="text-sm text-gray-400">No cascade steps recorded.</p>
+            <p className="text-sm text-muted-2">No request steps recorded.</p>
           ) : (
             <div className="space-y-3">
               {[...cascadeSteps].sort((a, b) => a.rank - b.rank).map((step) => (
                 <div key={step.id} className="flex items-start gap-3 text-sm">
-                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-500 flex-shrink-0">
+                  <div className="figure w-6 h-6 rounded-full bg-neut-bg flex items-center justify-center text-xs font-medium text-neut flex-shrink-0">
                     {step.rank}
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <AnaesthetistBadge />
-                      <span className="text-gray-900">Dr {step.anaesthetist?.full_name || 'Unknown'}</span>
-                    </div>
-                    <div className="text-xs text-gray-400 mt-1 space-y-0.5">
+                    <RoleName role="anaesthetist" name={`Dr ${step.anaesthetist?.full_name || 'Unknown'}`} />
+                    <div className="text-xs text-muted-2 mt-1 space-y-0.5">
                       {step.notified_at && <p>Notified: {formatDateTime(step.notified_at)}</p>}
                       {step.expires_at && <p>Expires: {formatDateTime(step.expires_at)}</p>}
                       {step.responded_at && <p>Responded: {formatDateTime(step.responded_at)}</p>}
-                      <p className="font-medium text-gray-600">Outcome: <span className="capitalize">{step.outcome}</span></p>
+                      <p className="font-medium text-ink-2">Outcome: <span className="capitalize">{step.outcome}</span></p>
                     </div>
                   </div>
                 </div>
@@ -524,22 +527,22 @@ export function BookingDetailPage() {
         {/* WhatsApp audit log */}
         <Card title="WhatsApp audit log">
           {whatsappLogs.length === 0 ? (
-            <p className="text-sm text-gray-400">No WhatsApp messages logged.</p>
+            <p className="text-sm text-muted-2">No WhatsApp messages logged.</p>
           ) : (
             <div className="space-y-3">
               {whatsappLogs.map((log) => (
-                <div key={log.id} className="border border-gray-100 rounded-lg p-3 text-sm">
+                <div key={log.id} className="border border-line rounded-sm p-3 text-sm">
                   <div className="flex items-center justify-between mb-1">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      log.direction === 'outbound' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                      log.direction === 'outbound' ? 'bg-brand-tint text-brand' : 'bg-ok-bg text-ok'
                     }`}>
                       {log.direction === 'outbound' ? 'Sent' : 'Received'}
                     </span>
-                    <span className="text-xs text-gray-400">{formatDateTime(log.sent_at)}</span>
+                    <span className="text-xs text-muted-2">{formatDateTime(log.sent_at)}</span>
                   </div>
-                  <p className="text-gray-900 text-xs">{log.body}</p>
-                  {log.reply && <p className="text-gray-500 text-xs mt-1">Reply: {log.reply}</p>}
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-ink text-xs">{log.body}</p>
+                  {log.reply && <p className="text-muted text-xs mt-1">Reply: {log.reply}</p>}
+                  <p className="text-xs text-muted-2 mt-1">
                     {log.message_type && <span className="capitalize">{log.message_type.replace(/_/g, ' ')}</span>}
                     {' · '}To: {log.to_phone} · From: {log.from_phone}
                   </p>
@@ -553,31 +556,31 @@ export function BookingDetailPage() {
       {/* Cancel modal */}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={() => { setShowCancelModal(false); setSearchParams({}); }}>
-          <div className="bg-white rounded-xl w-full max-w-md p-5" style={{ borderRadius: 12 }} onClick={(e) => e.stopPropagation()}>
+          <div className="bg-surface rounded w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
+              <div className="w-10 h-10 rounded-full bg-crit-bg flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-crit" />
               </div>
-              <h3 className="text-sm font-semibold text-gray-900">Cancel this case?</h3>
+              <h3 className="text-sm font-semibold text-ink">Cancel this case?</h3>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-3 mb-4 text-xs text-gray-600">
+            <div className="bg-surface-2 rounded-sm p-3 mb-4 text-xs text-ink-2">
               <p><strong>{booking.patient_initials}, {booking.patient_age} yrs</strong> · {booking.procedure}</p>
               <p>{formatDate(booking.surgery_date)} · {formatTime(booking.surgery_time)} · {booking.ot_location}</p>
             </div>
 
-            <p className="text-xs text-gray-500 mb-2">
+            <p className="text-xs text-muted mb-2">
               A cancellation message will be sent via WhatsApp to both the anaesthetist and surgeon.
             </p>
 
             <div className="mb-4">
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Reason for cancellation *</label>
+              <label className="block text-xs font-medium text-muted mb-1.5">Reason for cancellation *</label>
               <textarea
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 rows={3}
                 placeholder="Enter the reason for cancellation..."
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400 resize-none"
+                className="form-input resize-none"
                 autoFocus
               />
             </div>
@@ -585,14 +588,14 @@ export function BookingDetailPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowCancelModal(false); setSearchParams({}); setCancelReason(''); }}
-                className="flex-1 py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
+                className="flex-1 py-2.5 text-sm font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2"
               >
                 Go back
               </button>
               <button
                 onClick={handleCancel}
                 disabled={cancelling || !cancelReason.trim()}
-                className="flex-1 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                className="flex-1 py-2.5 text-sm font-medium text-white bg-crit rounded-sm hover:opacity-90 disabled:opacity-50"
               >
                 {cancelling ? 'Cancelling...' : 'Cancel case and notify via WhatsApp'}
               </button>
@@ -604,27 +607,27 @@ export function BookingDetailPage() {
       {/* Reschedule modal */}
       {showRescheduleModal && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={() => { setShowRescheduleModal(false); setSearchParams({}); }}>
-          <div className="bg-white rounded-xl w-full max-w-md p-5" style={{ borderRadius: 12 }} onClick={(e) => e.stopPropagation()}>
+          <div className="bg-surface rounded w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-10 h-10 rounded-full bg-[#EEEDFE] flex items-center justify-center">
-                <RotateCw className="w-5 h-5 text-[#3C3489]" />
+              <div className="w-10 h-10 rounded-full bg-brand-tint flex items-center justify-center">
+                <RotateCw className="w-5 h-5 text-brand" />
               </div>
-              <h3 className="text-sm font-semibold text-gray-900">Reschedule this case?</h3>
+              <h3 className="text-sm font-semibold text-ink">Reschedule this case?</h3>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-3 mb-4 text-xs text-gray-600">
+            <div className="bg-surface-2 rounded-sm p-3 mb-4 text-xs text-ink-2">
               <p><strong>{booking.patient_initials}, {booking.patient_age} yrs</strong> · {booking.procedure}</p>
               <p>Currently: {formatDate(booking.surgery_date)} · {formatTime(booking.surgery_time)} · {booking.hospital_clinic} · {booking.ot_location}</p>
             </div>
 
-            <p className="text-xs text-gray-500 mb-3">
-              A fresh WhatsApp cascade will be sent for the new details — starting with{' '}
+            <p className="text-xs text-muted mb-3">
+              A fresh WhatsApp request will be sent for the new details — starting with{' '}
               {booking.confirmed_anaesthetist ? `Dr ${booking.confirmed_anaesthetist.full_name}` : 'the previously confirmed anaesthetist'}, then the rest of the surgeon's preference list. The surgeon will also be notified.
             </p>
 
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">New date *</label>
+                <label className="block text-xs font-medium text-muted mb-1.5">New date *</label>
                 <input
                   type="date"
                   value={rescheduleForm.surgery_date}
@@ -633,7 +636,7 @@ export function BookingDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">New time *</label>
+                <label className="block text-xs font-medium text-muted mb-1.5">New time *</label>
                 <input
                   type="time"
                   value={rescheduleForm.surgery_time}
@@ -644,7 +647,7 @@ export function BookingDetailPage() {
             </div>
 
             <div className="mb-3">
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Hospital / Clinic *</label>
+              <label className="block text-xs font-medium text-muted mb-1.5">Hospital / Clinic *</label>
               <input
                 type="text"
                 value={rescheduleForm.hospital_clinic}
@@ -655,7 +658,7 @@ export function BookingDetailPage() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Location *</label>
+              <label className="block text-xs font-medium text-muted mb-1.5">Location *</label>
               <input
                 type="text"
                 value={rescheduleForm.ot_location}
@@ -668,14 +671,14 @@ export function BookingDetailPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowRescheduleModal(false); setSearchParams({}); }}
-                className="flex-1 py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
+                className="flex-1 py-2.5 text-sm font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2"
               >
                 Go back
               </button>
               <button
                 onClick={handleReschedule}
                 disabled={rescheduling || !rescheduleForm.surgery_date || !rescheduleForm.surgery_time || !rescheduleForm.hospital_clinic.trim() || !rescheduleForm.ot_location.trim()}
-                className="flex-1 py-2.5 text-sm font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670] disabled:opacity-50"
+                className="flex-1 py-2.5 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong disabled:opacity-50"
               >
                 {rescheduling ? 'Rescheduling...' : 'Reschedule and notify via WhatsApp'}
               </button>
@@ -689,8 +692,8 @@ export function BookingDetailPage() {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-gray-200 p-5" style={{ borderRadius: 12, borderWidth: 0.5 }}>
-      <h2 className="text-sm font-semibold text-gray-900 mb-4">{title}</h2>
+    <div className="bg-surface border border-line rounded p-5 shadow-sm">
+      <h2 className="text-sm font-semibold text-ink mb-4">{title}</h2>
       {children}
     </div>
   );
@@ -699,8 +702,8 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs text-gray-400">{label}</p>
-      <p className="text-gray-900 mt-0.5">{value}</p>
+      <p className="text-xs text-muted-2">{label}</p>
+      <p className="text-ink-2 mt-0.5">{value}</p>
     </div>
   );
 }

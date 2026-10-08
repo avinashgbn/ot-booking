@@ -100,8 +100,8 @@ export function SuperadminDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-sm text-gray-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="text-sm text-muted-2">Loading...</div>
       </div>
     );
   }
@@ -113,17 +113,17 @@ export function SuperadminDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div className="min-h-screen bg-bg">
+      <header className="bg-surface border-b border-line sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate('/superadmin/login')} className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg">
+          <button onClick={() => navigate('/superadmin/login')} className="p-1.5 text-muted hover:text-ink-2 hover:bg-surface-2 rounded-sm">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-sm bg-ink flex items-center justify-center">
               <Activity className="w-4 h-4 text-white" strokeWidth={2.5} />
             </div>
-            <h1 className="text-base font-semibold text-gray-900">Superadmin Dashboard</h1>
+            <h1 className="text-base font-semibold text-ink">Superadmin Dashboard</h1>
           </div>
         </div>
       </header>
@@ -137,25 +137,25 @@ export function SuperadminDashboardPage() {
         </div>
 
         {/* Practices table */}
-        <div className="bg-white border border-gray-200 overflow-hidden" style={{ borderRadius: 12, borderWidth: 0.5 }}>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-900">All practices</h2>
+        <div className="bg-surface border border-line overflow-hidden rounded shadow-sm">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+            <h2 className="text-sm font-semibold text-ink">All practices</h2>
             <button
               onClick={() => setShowCreate(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-ink rounded-sm hover:opacity-90"
             >
               <Plus className="w-4 h-4" /> New practice
             </button>
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-5 py-2 text-xs font-medium text-gray-500">Name</th>
-                <th className="text-left px-5 py-2 text-xs font-medium text-gray-500">Admin</th>
-                <th className="text-left px-5 py-2 text-xs font-medium text-gray-500">Users</th>
-                <th className="text-left px-5 py-2 text-xs font-medium text-gray-500">Bookings</th>
-                <th className="text-left px-5 py-2 text-xs font-medium text-gray-500">Created</th>
-                <th className="text-right px-5 py-2 text-xs font-medium text-gray-500">Action</th>
+              <tr className="border-b border-line bg-surface-2">
+                <th className="text-left px-5 py-2 text-xs font-medium text-muted">Name</th>
+                <th className="text-left px-5 py-2 text-xs font-medium text-muted">Admin</th>
+                <th className="text-left px-5 py-2 text-xs font-medium text-muted">Users</th>
+                <th className="text-left px-5 py-2 text-xs font-medium text-muted">Bookings</th>
+                <th className="text-left px-5 py-2 text-xs font-medium text-muted">Created</th>
+                <th className="text-right px-5 py-2 text-xs font-medium text-muted">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -163,16 +163,16 @@ export function SuperadminDashboardPage() {
                 const practiceUsers = users.filter((u) => u.practice_id === p.id);
                 const admin = practiceUsers.find((u) => u.id === p.admin_user_id) || practiceUsers.find((u) => u.role === 'practice_admin');
                 return (
-                  <tr key={p.id} className="border-b border-gray-50 last:border-0">
-                    <td className="px-5 py-3 text-gray-900 font-medium">{p.name}</td>
-                    <td className="px-5 py-3 text-gray-600">{admin?.full_name || '—'}</td>
-                    <td className="px-5 py-3 text-gray-600">{practiceUsers.length}</td>
-                    <td className="px-5 py-3 text-gray-600">{bookings.filter((b) => b.practice_id === p.id).length}</td>
-                    <td className="px-5 py-3 text-gray-500 text-xs">{formatDate(p.created_at)}</td>
+                  <tr key={p.id} className="border-b border-line last:border-0">
+                    <td className="px-5 py-3 text-ink font-medium">{p.name}</td>
+                    <td className="px-5 py-3 text-ink-2">{admin?.full_name || '—'}</td>
+                    <td className="px-5 py-3 text-ink-2">{practiceUsers.length}</td>
+                    <td className="px-5 py-3 text-ink-2">{bookings.filter((b) => b.practice_id === p.id).length}</td>
+                    <td className="px-5 py-3 text-muted text-xs">{formatDate(p.created_at)}</td>
                     <td className="px-5 py-3 text-right">
                       <button
                         onClick={() => handleOpenPractice(p)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2"
                       >
                         <ExternalLink className="w-3 h-3" /> Open
                       </button>
@@ -182,20 +182,20 @@ export function SuperadminDashboardPage() {
               })}
             </tbody>
           </table>
-          {practices.length === 0 && <p className="text-sm text-gray-400 p-6 text-center">No practices yet.</p>}
+          {practices.length === 0 && <p className="text-sm text-muted-2 p-6 text-center">No practices yet.</p>}
         </div>
 
         {/* Audit log */}
-        <div className="bg-white border border-gray-200 overflow-hidden" style={{ borderRadius: 12, borderWidth: 0.5 }}>
-          <h2 className="text-sm font-semibold text-gray-900 px-5 py-4 border-b border-gray-100">Recent actions</h2>
+        <div className="bg-surface border border-line overflow-hidden rounded shadow-sm">
+          <h2 className="text-sm font-semibold text-ink px-5 py-4 border-b border-line">Recent actions</h2>
           {audit.length === 0 ? (
-            <p className="text-sm text-gray-400 p-5 text-center">No actions logged.</p>
+            <p className="text-sm text-muted-2 p-5 text-center">No actions logged.</p>
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-line">
               {audit.map((a) => (
                 <div key={a.id} className="px-5 py-3 text-sm">
-                  <p className="text-gray-900">{a.action || '—'}</p>
-                  <p className="text-xs text-gray-400">{a.notes} · {formatDateTime(a.performed_at)}</p>
+                  <p className="text-ink">{a.action || '—'}</p>
+                  <p className="text-xs text-muted-2">{a.notes} · {formatDateTime(a.performed_at)}</p>
                 </div>
               ))}
             </div>
@@ -228,31 +228,31 @@ function CreatePracticeModal({ onClose, onCreate }: { onClose: () => void; onCre
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-white rounded-xl w-full max-w-md p-5" style={{ borderRadius: 12 }} onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-gray-900">Create new practice</h3>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+          <h3 className="text-sm font-semibold text-ink">Create new practice</h3>
+          <button onClick={onClose} className="p-1 text-muted-2 hover:text-ink-2"><X className="w-4 h-4" /></button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Practice name</label>
+            <label className="block text-xs font-medium text-muted mb-1.5">Practice name</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Novena Surgical Group" className="form-input" autoFocus />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Admin name</label>
+            <label className="block text-xs font-medium text-muted mb-1.5">Admin name</label>
             <input type="text" value={adminName} onChange={(e) => setAdminName(e.target.value)} placeholder="e.g. Sarah Chen" className="form-input" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Admin mobile number</label>
-            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-              <span className="px-3 py-2.5 text-sm text-gray-500 bg-gray-50 border-r border-gray-200">+65</span>
-              <input type="tel" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} placeholder="9232 2222" className="flex-1 px-3 py-2.5 text-sm outline-none" />
+            <label className="block text-xs font-medium text-muted mb-1.5">Admin mobile number</label>
+            <div className="flex items-center bg-surface-2 border border-line rounded-sm overflow-hidden">
+              <span className="px-3 py-2.5 text-sm text-muted border-r border-line">+65</span>
+              <input type="tel" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} placeholder="9232 2222" className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none" />
             </div>
-            <p className="text-xs text-gray-400 mt-1">An invite will be sent via WhatsApp to this number.</p>
+            <p className="text-xs text-muted-2 mt-1">An invite will be sent via WhatsApp to this number.</p>
           </div>
           <div className="flex gap-3 pt-2">
-            <button onClick={onClose} className="flex-1 py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-            <button onClick={handleCreate} disabled={saving} className="flex-1 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <button onClick={onClose} className="flex-1 py-2.5 text-sm font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2">Cancel</button>
+            <button onClick={handleCreate} disabled={saving} className="flex-1 py-2.5 text-sm font-medium text-white bg-ink rounded-sm hover:opacity-90 disabled:opacity-50">
               {saving ? 'Creating...' : 'Create & send invite'}
             </button>
           </div>
@@ -264,12 +264,12 @@ function CreatePracticeModal({ onClose, onCreate }: { onClose: () => void; onCre
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
-    <div className="bg-white border border-gray-200 p-4" style={{ borderRadius: 12, borderWidth: 0.5 }}>
-      <div className="flex items-center gap-2 text-gray-500">
+    <div className="bg-surface border border-line p-4 rounded shadow-sm">
+      <div className="flex items-center gap-2 text-muted">
         {icon}
         <p className="text-xs">{label}</p>
       </div>
-      <p className="text-2xl font-semibold mt-1 text-gray-900">{value}</p>
+      <p className="figure text-2xl font-semibold mt-1 text-ink">{value}</p>
     </div>
   );
 }

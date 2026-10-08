@@ -156,6 +156,43 @@ export function buildRescheduleRequestBody(booking: any, windowMinutes: number):
   ].join('\n');
 }
 
+// Validates an inbound Twilio webhook request per Twilio's signing scheme:
+// HMAC-SHA1(authToken, url + sorted(key+value for each param)), base64-encoded,
+// compared against the X-Twilio-Signature header. `url` must be the exact
+// public URL Twilio was configured to POST to (no query string mismatch,
+// no trailing-slash mismatch), since the signature covers it byte-for-byte.
+export async function verifyTwilioSignature(
+  authToken: string,
+  url: string,
+  params: Record<string, string>,
+  signature: string,
+): Promise<boolean> {
+  if (!authToken || !signature) return false;
+
+  let data = url;
+  for (const key of Object.keys(params).sort()) {
+    data += key + params[key];
+  }
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(authToken),
+    { name: 'HMAC', hash: 'SHA-1' },
+    false,
+    ['sign'],
+  );
+  const sigBuffer = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+  const bytes = new Uint8Array(sigBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  const computed = btoa(binary);
+
+  if (computed.length !== signature.length) return false;
+  let diff = 0;
+  for (let i = 0; i < computed.length; i++) diff |= computed.charCodeAt(i) ^ signature.charCodeAt(i);
+  return diff === 0;
+}
+
 export function createSupabaseClient() {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
