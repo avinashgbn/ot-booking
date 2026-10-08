@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
-import { RoleBadge, SurgeonBadge, AnaesthetistBadge } from '@/components/Badges';
+import { RoleBadge, RoleName } from '@/components/Badges';
 import { ReorderableList } from '@/components/ReorderableList';
 import { normalisePhone } from '@/lib/utils';
 import type { User, Anaesthetist, AnaesthetistPreference, Practice, PracticeSurgeon } from '@/types';
@@ -73,27 +73,27 @@ export function SettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div className="min-h-screen bg-bg">
+      <header className="bg-surface border-b border-line sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate('/dashboard')} className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg">
+          <button onClick={() => navigate('/dashboard')} className="p-1.5 text-muted hover:text-ink-2 hover:bg-surface-2 rounded-sm">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-base font-semibold text-gray-900">Settings</h1>
+          <h1 className="text-base font-semibold text-ink">Settings</h1>
         </div>
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Tabs */}
-        <div className="flex gap-1 overflow-x-auto mb-6 border-b border-gray-200">
+        <div className="flex gap-1 overflow-x-auto mb-6 border-b border-line">
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 tab === t.key
-                  ? 'border-[#3C3489] text-[#3C3489]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-muted hover:text-ink-2'
               }`}
             >
               {t.label}
@@ -115,7 +115,7 @@ export function SettingsPage() {
         {tab === 'lists' && <ListsTab surgeons={[...surgeons, ...linkedSurgeons]} anaesthetists={anaesthetists} />}
         {tab === 'admin' && user?.role === 'practice_admin' && <AdminTab users={users} currentUserId={user.id} onChanged={loadUsers} />}
         {tab === 'admin' && user?.role !== 'practice_admin' && (
-          <p className="text-sm text-gray-400">Admin settings are only available to practice admins.</p>
+          <p className="text-sm text-muted-2">Admin settings are only available to practice admins.</p>
         )}
       </div>
     </div>
@@ -137,22 +137,22 @@ function PracticeTab({ practice, onUpdate }: { practice: Practice | null; onUpda
     onUpdate();
   };
 
-  if (!practice) return <p className="text-sm text-gray-400">Loading...</p>;
+  if (!practice) return <p className="text-sm text-muted-2">Loading...</p>;
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border border-gray-200 p-5" style={{ borderRadius: 12, borderWidth: 0.5 }}>
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Practice details</h2>
+      <div className="bg-surface border border-line rounded p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-ink mb-4">Practice details</h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Practice name</label>
+            <label className="block text-xs font-medium text-muted mb-1.5">Practice name</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="form-input" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Practice ID</label>
-            <input type="text" value={practice.id} disabled className="form-input bg-gray-50 text-gray-400 font-mono text-xs" />
+            <label className="block text-xs font-medium text-muted mb-1.5">Practice ID</label>
+            <input type="text" value={practice.id} disabled className="form-input text-muted-2 font-mono text-xs" />
           </div>
-          <button onClick={handleSave} className="px-4 py-2 text-sm font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670]">
+          <button onClick={handleSave} className="px-4 py-2 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong">
             Save changes
           </button>
         </div>
@@ -309,32 +309,32 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
   };
 
   const getStatus = (u: User) => {
-    if (u.archived) return { label: 'Archived', class: 'bg-gray-200 text-gray-600' };
-    if (u.active) return { label: 'Active', class: 'bg-green-100 text-green-700' };
-    if (u.invite_token) return { label: 'Invite sent', class: 'bg-amber-100 text-amber-700' };
-    return { label: 'Not sent', class: 'bg-gray-100 text-gray-500' };
+    if (u.archived) return { label: 'Archived', class: 'bg-neut-bg text-neut' };
+    if (u.active) return { label: 'Active', class: 'bg-ok-bg text-ok' };
+    if (u.invite_token) return { label: 'Invite sent', class: 'bg-warn-bg text-warn' };
+    return { label: 'Not sent', class: 'bg-neut-bg text-neut' };
   };
 
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        <button onClick={() => { setNewRole('surgeon'); setShowAdd(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670]">
+        <button onClick={() => { setNewRole('surgeon'); setShowAdd(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong">
           <Plus className="w-4 h-4" /> Add surgeon
         </button>
-        <button onClick={() => { setNewRole('secretary'); setShowAdd(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670]">
+        <button onClick={() => { setNewRole('secretary'); setShowAdd(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong">
           <Plus className="w-4 h-4" /> Add secretary
         </button>
       </div>
 
-      <div className="bg-white border border-gray-200 overflow-hidden" style={{ borderRadius: 12, borderWidth: 0.5 }}>
+      <div className="bg-surface border border-line rounded overflow-hidden shadow-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Role</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Name</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Phone</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Status</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-gray-500">Actions</th>
+            <tr className="border-b border-line bg-surface-2">
+              <th className="text-left px-4 py-2 text-xs font-medium text-muted">Role</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-muted">Name</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-muted">Phone</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-muted">Status</th>
+              <th className="text-right px-4 py-2 text-xs font-medium text-muted">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -342,10 +342,10 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
               const status = getStatus(u);
               const isSelf = u.id === currentUserId;
               return (
-                <tr key={u.id} className="border-b border-gray-50 last:border-0">
+                <tr key={u.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
-                  <td className="px-4 py-3 text-gray-900">{u.full_name}{isSelf && <span className="text-xs text-gray-400 ml-1">(you)</span>}</td>
-                  <td className="px-4 py-3 text-gray-600 text-xs">{u.phone}</td>
+                  <td className="px-4 py-3 text-ink">{u.full_name}{isSelf && <span className="text-xs text-muted-2 ml-1">(you)</span>}</td>
+                  <td className="px-4 py-3 text-ink-2 text-xs">{u.phone}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${status.class}`}>{status.label}</span>
                   </td>
@@ -353,17 +353,17 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
                     {!isSelf && (
                       <div className="flex justify-end gap-1">
                         {u.archived ? (
-                          <button onClick={() => handleRestore(u)} className="px-2.5 py-1 text-xs font-medium text-[#3C3489] border border-[#3C3489] rounded-lg hover:bg-[#EEEDFE]" title="Restore">
+                          <button onClick={() => handleRestore(u)} className="px-2.5 py-1 text-xs font-medium text-brand border border-brand rounded-sm hover:bg-brand-tint" title="Restore">
                             Restore
                           </button>
                         ) : (
                           <>
                             {!u.active && (
-                              <button onClick={() => handleResendInvite(u)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded" title="Resend invite">
+                              <button onClick={() => handleResendInvite(u)} className="p-1.5 text-muted-2 hover:text-ink-2 hover:bg-surface-2 rounded-sm" title="Resend invite">
                                 <Send className="w-4 h-4" />
                               </button>
                             )}
-                            <button onClick={() => handleRemove(u)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded" title="Remove">
+                            <button onClick={() => handleRemove(u)} className="p-1.5 text-crit hover:bg-crit-bg rounded-sm" title="Remove">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </>
@@ -376,24 +376,24 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
             })}
           </tbody>
         </table>
-        {users.length === 0 && <p className="text-sm text-gray-400 p-6 text-center">No users yet.</p>}
+        {users.length === 0 && <p className="text-sm text-muted-2 p-6 text-center">No users yet.</p>}
       </div>
 
       {linkedSurgeons.length > 0 && (
-        <div className="bg-white border border-gray-200 overflow-hidden" style={{ borderRadius: 12, borderWidth: 0.5 }}>
-          <div className="px-4 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Linked surgeons</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Surgeons who also work elsewhere and are shared into this practice for booking. Their account is managed at their home practice.</p>
+        <div className="bg-surface border border-line rounded overflow-hidden shadow-sm">
+          <div className="px-4 py-3 border-b border-line">
+            <h3 className="text-sm font-semibold text-ink">Linked surgeons</h3>
+            <p className="text-xs text-muted-2 mt-0.5">Surgeons who also work elsewhere and are shared into this practice for booking. Their account is managed at their home practice.</p>
           </div>
           <table className="w-full text-sm">
             <tbody>
               {linkedSurgeons.map((u) => (
-                <tr key={u.id} className="border-b border-gray-50 last:border-0">
+                <tr key={u.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
-                  <td className="px-4 py-3 text-gray-900">{u.full_name}</td>
-                  <td className="px-4 py-3 text-gray-600 text-xs">{u.phone}</td>
+                  <td className="px-4 py-3 text-ink">{u.full_name}</td>
+                  <td className="px-4 py-3 text-ink-2 text-xs">{u.phone}</td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => handleUnlink(u)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded" title="Unlink">
+                    <button onClick={() => handleUnlink(u)} className="p-1.5 text-crit hover:bg-crit-bg rounded-sm" title="Unlink">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </td>
@@ -406,26 +406,26 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
 
       {showAdd && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={() => setShowAdd(false)}>
-          <div className="bg-white rounded-xl w-full max-w-sm p-5" style={{ borderRadius: 12 }} onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Add {newRole}</h3>
+          <div className="bg-surface rounded w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-ink mb-4">Add {newRole}</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Full name</label>
+                <label className="block text-xs font-medium text-muted mb-1.5">Full name</label>
                 <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} className="form-input" autoFocus />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Mobile number</label>
-                <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-                  <span className="px-3 py-2.5 text-sm text-gray-500 bg-gray-50 border-r border-gray-200">+65</span>
-                  <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="9232 2222" className="flex-1 px-3 py-2.5 text-sm outline-none" />
+                <label className="block text-xs font-medium text-muted mb-1.5">Mobile number</label>
+                <div className="flex items-center bg-surface-2 border border-line rounded-sm overflow-hidden">
+                  <span className="px-3 py-2.5 text-sm text-muted border-r border-line">+65</span>
+                  <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="9232 2222" className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none" />
                 </div>
                 {newRole === 'surgeon' && (
-                  <p className="text-xs text-gray-400 mt-1">If this number already belongs to a surgeon at another practice, they'll be linked here instead of getting a new invite.</p>
+                  <p className="text-xs text-muted-2 mt-1">If this number already belongs to a surgeon at another practice, they'll be linked here instead of getting a new invite.</p>
                 )}
               </div>
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowAdd(false)} className="flex-1 py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                <button onClick={handleAdd} disabled={adding} className="flex-1 py-2.5 text-sm font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670] disabled:opacity-50">
+                <button onClick={() => setShowAdd(false)} className="flex-1 py-2.5 text-sm font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2">Cancel</button>
+                <button onClick={handleAdd} disabled={adding} className="flex-1 py-2.5 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong disabled:opacity-50">
                   {adding ? 'Adding...' : 'Add & send invite'}
                 </button>
               </div>
@@ -493,55 +493,52 @@ function DirectoryTab({ anaesthetists, onChanged }: { anaesthetists: Anaesthetis
     <div className="space-y-4">
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or hospital..." className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-2" />
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or hospital..." className="form-input pl-9" />
         </div>
         {contactPickerSupported && (
-          <button onClick={handleImportFromContacts} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
+          <button onClick={handleImportFromContacts} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2">
             <Contact className="w-4 h-4" /> Import from contacts
           </button>
         )}
-        <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670]">
+        <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong">
           <Plus className="w-4 h-4" /> Add anaesthetist
         </button>
       </div>
 
-      <div className="bg-white border border-gray-200 overflow-hidden" style={{ borderRadius: 12, borderWidth: 0.5 }}>
+      <div className="space-y-2">
         {filtered.map((a) => (
-          <div key={a.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-0">
-            <AnaesthetistBadge />
-            <div className="flex-1">
-              <p className="text-sm text-gray-900">Dr {a.full_name}</p>
-              <p className="text-xs text-gray-400">{a.hospitals?.join(', ') || 'No hospitals listed'} · {a.phone}</p>
-            </div>
+          <div key={a.id} className="flex items-center gap-3 px-4 py-3 bg-surface border border-line rounded-sm">
+            <RoleName role="anaesthetist" name={`Dr ${a.full_name}`} />
+            <p className="text-xs text-muted flex-1">{a.hospitals?.join(', ') || 'No hospitals listed'} · {a.phone}</p>
           </div>
         ))}
-        {filtered.length === 0 && <p className="text-sm text-gray-400 p-4 text-center">No anaesthetists found</p>}
+        {filtered.length === 0 && <p className="text-sm text-muted-2 p-4 text-center">No anaesthetists found</p>}
       </div>
 
       {showAdd && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={() => setShowAdd(false)}>
-          <div className="bg-white rounded-xl w-full max-w-sm p-5" style={{ borderRadius: 12 }} onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Add anaesthetist</h3>
+          <div className="bg-surface rounded w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-ink mb-4">Add anaesthetist</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Full name</label>
+                <label className="block text-xs font-medium text-muted mb-1.5">Full name</label>
                 <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} className="form-input" autoFocus />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Mobile number</label>
-                <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-                  <span className="px-3 py-2.5 text-sm text-gray-500 bg-gray-50 border-r border-gray-200">+65</span>
-                  <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="9232 2222" className="flex-1 px-3 py-2.5 text-sm outline-none" />
+                <label className="block text-xs font-medium text-muted mb-1.5">Mobile number</label>
+                <div className="flex items-center bg-surface-2 border border-line rounded-sm overflow-hidden">
+                  <span className="px-3 py-2.5 text-sm text-muted border-r border-line">+65</span>
+                  <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="9232 2222" className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Hospitals (comma separated)</label>
+                <label className="block text-xs font-medium text-muted mb-1.5">Hospitals (comma separated)</label>
                 <input type="text" value={newHospitals} onChange={(e) => setNewHospitals(e.target.value)} placeholder="Mount Novenal, Gleneagles" className="form-input" />
               </div>
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowAdd(false)} className="flex-1 py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                <button onClick={handleAdd} className="flex-1 py-2.5 text-sm font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670]">Add</button>
+                <button onClick={() => setShowAdd(false)} className="flex-1 py-2.5 text-sm font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2">Cancel</button>
+                <button onClick={handleAdd} className="flex-1 py-2.5 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong">Add</button>
               </div>
             </div>
           </div>
@@ -620,7 +617,7 @@ function ListsTab({ surgeons, anaesthetists }: { surgeons: User[]; anaesthetists
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1.5">Select surgeon</label>
+        <label className="block text-xs font-medium text-muted mb-1.5">Select surgeon</label>
         <select value={selectedSurgeon} onChange={(e) => setSelectedSurgeon(e.target.value)} className="form-input max-w-xs">
           <option value="">Choose surgeon...</option>
           {surgeons.map((s) => <option key={s.id} value={s.id}>Dr {s.full_name}</option>)}
@@ -630,7 +627,7 @@ function ListsTab({ surgeons, anaesthetists }: { surgeons: User[]; anaesthetists
       {selectedSurgeon && (
         <div className="space-y-2">
           {prefs.length > 0 && (
-            <p className="text-xs text-gray-400">Drag to reorder by preference (1 = first choice).</p>
+            <p className="text-xs text-muted-2">Drag to reorder by preference (1 = first choice).</p>
           )}
           <ReorderableList
             items={prefs}
@@ -638,19 +635,19 @@ function ListsTab({ surgeons, anaesthetists }: { surgeons: User[]; anaesthetists
             getKey={(p) => p.id}
             renderItem={(item) => (
               <div className="flex items-center gap-2">
-                <AnaesthetistBadge />
-                <span className="text-sm text-gray-900 flex-1">Dr {item.anaesthetist?.full_name || 'Unknown'}</span>
-                <button onClick={() => remove(item.id)} className="p-1 text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
+                <RoleName role="anaesthetist" name={`Dr ${item.anaesthetist?.full_name || 'Unknown'}`} />
+                <span className="flex-1" />
+                <button onClick={() => remove(item.id)} className="p-1 text-crit border border-crit-line rounded-sm bg-crit-bg hover:opacity-80"><X className="w-4 h-4" /></button>
               </div>
             )}
           />
 
           {prefs.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-4">No preferences set. Add an anaesthetist below.</p>
+            <p className="text-sm text-muted-2 text-center py-4">No preferences set. Add an anaesthetist below.</p>
           )}
 
           {prefs.length < 5 && (
-            <button onClick={() => setShowDirectory(true)} className="w-full p-3 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:bg-gray-50">
+            <button onClick={() => setShowDirectory(true)} className="w-full p-3 border border-dashed border-line rounded-sm text-sm text-muted hover:border-brand hover:text-brand transition-colors">
               + Add from directory
             </button>
           )}
@@ -659,21 +656,20 @@ function ListsTab({ surgeons, anaesthetists }: { surgeons: User[]; anaesthetists
 
       {showDirectory && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={() => setShowDirectory(false)}>
-          <div className="bg-white rounded-xl w-full max-w-md max-h-[80vh] flex flex-col" style={{ borderRadius: 12 }} onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Add anaesthetist</h3>
+          <div className="bg-surface rounded w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-line">
+              <h3 className="text-sm font-semibold text-ink mb-3">Add anaesthetist</h3>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400" autoFocus />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-2" />
+                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="form-input pl-9" autoFocus />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
               {filteredAnaesthetists.map((a) => (
-                <button key={a.id} onClick={() => add(a)} className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-gray-50 text-left">
-                  <AnaesthetistBadge />
+                <button key={a.id} onClick={() => add(a)} className="w-full flex items-center gap-2 p-3 rounded-sm hover:bg-surface-2 text-left">
                   <div className="flex-1">
-                    <p className="text-sm text-gray-900">Dr {a.full_name}</p>
-                    <p className="text-xs text-gray-400">{a.hospitals?.join(', ') || ''}</p>
+                    <RoleName role="anaesthetist" name={`Dr ${a.full_name}`} />
+                    <p className="text-xs text-muted-2 mt-0.5">{a.hospitals?.join(', ') || ''}</p>
                   </div>
                 </button>
               ))}
@@ -710,26 +706,26 @@ function AdminTab({ users, currentUserId, onChanged }: { users: User[]; currentU
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border border-gray-200 p-5" style={{ borderRadius: 12, borderWidth: 0.5 }}>
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Transfer admin role</h2>
-        <p className="text-xs text-gray-500 mb-3">Transfer the practice admin role to another secretary. You will become a regular secretary.</p>
+      <div className="bg-surface border border-line rounded p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-ink mb-4">Transfer admin role</h2>
+        <p className="text-xs text-muted mb-3">Transfer the practice admin role to another secretary. You will become a regular secretary.</p>
         <div className="flex gap-2">
           <select value={newAdminId} onChange={(e) => setNewAdminId(e.target.value)} className="form-input flex-1">
             <option value="">Select secretary...</option>
             {secretaries.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
           </select>
-          <button onClick={handleTransfer} disabled={!newAdminId} className="px-4 py-2 text-sm font-medium text-white bg-[#3C3489] rounded-lg hover:bg-[#2D2670] disabled:opacity-50">
+          <button onClick={handleTransfer} disabled={!newAdminId} className="px-4 py-2 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong disabled:opacity-50">
             Transfer
           </button>
         </div>
       </div>
 
-      <div className="bg-white border border-red-200 p-5" style={{ borderRadius: 12, borderWidth: 0.5 }}>
+      <div className="bg-crit-bg border border-crit-line rounded p-5">
         <div className="flex items-center gap-2 mb-3">
-          <ShieldAlert className="w-5 h-5 text-red-500" />
-          <h2 className="text-sm font-semibold text-red-700">Danger zone</h2>
+          <ShieldAlert className="w-5 h-5 text-crit" />
+          <h2 className="text-sm font-semibold text-crit">Danger zone</h2>
         </div>
-        <p className="text-xs text-gray-500">Contact the platform superadmin to delete the practice or reset all data.</p>
+        <p className="text-xs text-muted">Contact the platform superadmin to delete the practice or reset all data.</p>
       </div>
     </div>
   );

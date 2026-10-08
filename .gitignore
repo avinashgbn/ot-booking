@@ -24,3 +24,5 @@ dist-ssr
 
 .claude/
 supabase/.temp/
+
+.env.*

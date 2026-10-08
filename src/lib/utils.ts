@@ -1,16 +1,23 @@
 import type { UserRole } from '@/types';
+import { statusGroup, statusGroupBadgeClass } from '@/lib/status';
 
 export function roleBadgeClass(role: UserRole): string {
   switch (role) {
     case 'surgeon':
-      return 'bg-[#EEEDFE] text-[#3C3489]';
+      return 'bg-brand-tint text-brand';
     case 'secretary':
-      return 'bg-[#EEEDFE] text-[#3C3489]';
+      return 'bg-brand-tint text-brand';
     case 'practice_admin':
-      return 'bg-[#EEEDFE] text-[#3C3489]';
+      return 'bg-brand-tint text-brand';
     case 'superadmin':
-      return 'bg-blue-100 text-blue-800';
+      return 'bg-brand-tint text-brand';
   }
+}
+
+// Small uppercase caption + coloured dot, used in place of the repeated
+// "Surgeon"/"Anaesthetist" pills next to a name.
+export function roleDotClass(role: 'surgeon' | 'anaesthetist'): string {
+  return role === 'surgeon' ? 'bg-brand' : 'bg-ok';
 }
 
 export function roleLabel(role: UserRole): string {
@@ -27,24 +34,16 @@ export function roleLabel(role: UserRole): string {
 }
 
 export function anaesthetistBadgeClass(): string {
-  return 'bg-[#E1F5EE] text-[#085041]';
+  return 'bg-ok-bg text-ok';
 }
 
 export function statusBadgeClass(status: string, cancelAck?: boolean): string {
-  if (status === 'confirmed') return 'bg-green-100 text-green-700';
-  if (status === 'cascade_running') return 'bg-amber-100 text-amber-700';
-  if (status === 'all_declined') return 'bg-red-100 text-red-700';
-  if (status === 'cancelled') {
-    if (cancelAck === false) return 'bg-orange-100 text-orange-700';
-    return 'bg-red-100 text-red-700';
-  }
-  if (status === 'pending') return 'bg-gray-100 text-gray-600';
-  return 'bg-gray-100 text-gray-600';
+  return statusGroupBadgeClass(statusGroup(status, cancelAck));
 }
 
 export function statusLabel(status: string, cancelAck?: boolean): string {
   if (status === 'confirmed') return 'Confirmed';
-  if (status === 'cascade_running') return 'Cascade running';
+  if (status === 'cascade_running') return 'Request sent';
   if (status === 'all_declined') return 'All declined';
   if (status === 'cancelled') {
     if (cancelAck === false) return 'Cancelled – awaiting ANA';

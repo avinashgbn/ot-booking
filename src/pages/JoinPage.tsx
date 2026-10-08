@@ -108,21 +108,21 @@ export function JoinPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-400 text-sm">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="text-muted-2 text-sm">Loading...</div>
       </div>
     );
   }
 
   if (expired) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-bg px-4">
         <div className="max-w-sm w-full text-center">
-          <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mx-auto mb-4">
-            <Lock className="w-6 h-6 text-red-500" />
+          <div className="w-12 h-12 rounded-sm bg-crit-bg flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-6 h-6 text-crit" />
           </div>
-          <h1 className="text-lg font-semibold text-gray-900 mb-2">This link has expired</h1>
-          <p className="text-sm text-gray-500">Contact your practice admin to resend your invite.</p>
+          <h1 className="text-lg font-semibold text-ink mb-2">This link has expired</h1>
+          <p className="text-sm text-muted">Contact your practice admin to resend your invite.</p>
         </div>
       </div>
     );
@@ -131,48 +131,48 @@ export function JoinPage() {
   if (!user) return null;
 
   const rolePillClass = user.role === 'surgeon'
-    ? 'bg-[#EEEDFE] text-[#3C3489]'
-    : 'bg-[#E1F5EE] text-[#085041]';
+    ? 'bg-brand-tint text-brand'
+    : 'bg-ok-bg text-ok';
   const roleLabel = user.role === 'surgeon' ? 'Surgeon' : 'Secretary';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-bg flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 mb-6 justify-center">
-          <div className="w-10 h-10 rounded-xl bg-[#3C3489] flex items-center justify-center">
+          <div className="w-10 h-10 rounded-sm bg-brand flex items-center justify-center">
             <Activity className="w-5 h-5 text-white" strokeWidth={2.5} />
           </div>
-          <span className="text-xl font-semibold text-gray-900">OT Booking</span>
+          <span className="text-xl font-semibold text-ink">OT Booking</span>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6" style={{ borderRadius: 12 }}>
-          <h1 className="text-lg font-semibold text-gray-900 mb-1">Activate your account</h1>
-          <p className="text-sm text-gray-500 mb-6">Confirm your details and set your PIN</p>
+        <div className="bg-surface rounded border border-line p-6 shadow-sm">
+          <h1 className="text-lg font-semibold text-ink mb-1">Activate your account</h1>
+          <p className="text-sm text-muted mb-6">Confirm your details and set your PIN</p>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Practice</label>
+              <label className="block text-xs font-medium text-muted mb-1">Practice</label>
               <input
                 type="text"
                 value={practice?.name || ''}
                 disabled
-                className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-600"
+                className="form-input text-muted"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Mobile number</label>
+              <label className="block text-xs font-medium text-muted mb-1">Mobile number</label>
               <input
                 type="text"
                 value={user.phone}
                 disabled
-                className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-600"
+                className="form-input text-muted"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Role</label>
-              <div className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+              <label className="block text-xs font-medium text-muted mb-1">Role</label>
+              <div className="px-3 py-2.5 bg-surface-2 border border-line rounded-sm">
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${rolePillClass}`}>
                   {roleLabel}
                 </span>
@@ -180,20 +180,20 @@ export function JoinPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Your full name</label>
+              <label className="block text-xs font-medium text-muted mb-1">Your full name</label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   disabled={!editingName}
-                  className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-600"
+                  className="form-input flex-1 disabled:text-muted"
                 />
                 {!editingName ? (
                   <button
                     type="button"
                     onClick={() => setEditingName(true)}
-                    className="px-3 py-2.5 text-sm font-medium text-[#3C3489] border border-gray-200 rounded-lg hover:bg-gray-50"
+                    className="px-3 py-2.5 text-sm font-medium text-brand border border-line rounded-sm hover:bg-surface-2"
                   >
                     Update
                   </button>
@@ -201,17 +201,17 @@ export function JoinPage() {
                   <button
                     type="button"
                     onClick={() => setEditingName(false)}
-                    className="px-3 py-2.5 text-sm font-medium text-[#3C3489] border border-gray-200 rounded-lg hover:bg-gray-50"
+                    className="px-3 py-2.5 text-sm font-medium text-brand border border-line rounded-sm hover:bg-surface-2"
                   >
                     <Check className="w-4 h-4" />
                   </button>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mt-1">Tap Update if your admin spelled your name differently.</p>
+              <p className="text-xs text-muted-2 mt-1">Tap Update if your admin spelled your name differently.</p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Set your 4-digit PIN</label>
+              <label className="block text-xs font-medium text-muted mb-1">Set your 4-digit PIN</label>
               <input
                 type="password"
                 inputMode="numeric"
@@ -219,14 +219,14 @@ export function JoinPage() {
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
                 placeholder="••••"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400 tracking-widest"
+                className="form-input tracking-widest"
               />
             </div>
 
             <button
               onClick={handleActivate}
               disabled={submitting}
-              className="w-full bg-[#3C3489] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[#2D2670] disabled:opacity-50 transition-colors"
+              className="w-full bg-brand text-white py-2.5 rounded-sm text-sm font-medium hover:bg-brand-strong disabled:opacity-50 transition-colors"
             >
               {submitting ? 'Activating...' : 'Confirm and activate'}
             </button>

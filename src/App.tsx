@@ -16,8 +16,8 @@ function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles:
   const { user, loading } = useAuth();
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-400 text-sm">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="text-muted-2 text-sm">Loading...</div>
       </div>
     );
   }
@@ -33,8 +33,8 @@ function SurgeonRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-400 text-sm">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="text-muted-2 text-sm">Loading...</div>
       </div>
     );
   }

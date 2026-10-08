@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
-import { SurgeonBadge, AnaesthetistBadge, StatusBadge } from '@/components/Badges';
+import { SurgeonBadge, StatusBadge, RoleName } from '@/components/Badges';
 import { ReorderableList } from '@/components/ReorderableList';
 import { formatDate, formatTime, anaesthesiaLabel } from '@/lib/utils';
 import type { Booking, Practice, Anaesthetist, AnaesthetistPreference } from '@/types';
@@ -154,19 +154,19 @@ export function SurgeonPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div className="min-h-screen bg-bg">
+      <header className="bg-surface border-b border-line sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#3C3489] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-sm bg-brand flex items-center justify-center">
               <Activity className="w-4 h-4 text-white" strokeWidth={2.5} />
             </div>
-            <span className="text-sm font-semibold text-gray-900">OT Booking</span>
+            <span className="text-sm font-semibold text-ink">OT Booking</span>
           </div>
           <button
             onClick={handleSignOut}
             title="Log off"
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg"
+            className="p-2 text-muted hover:text-ink-2 hover:bg-surface-2 rounded-sm"
           >
             <LogOut className="w-5 h-5" />
           </button>
@@ -178,57 +178,56 @@ export function SurgeonPage() {
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-1">
             <SurgeonBadge />
-            <h1 className="text-lg font-semibold text-gray-900">Dr {user?.full_name}</h1>
+            <h1 className="text-lg font-semibold text-ink">Dr {user?.full_name}</h1>
           </div>
-          <p className="text-sm text-gray-500">{practice?.name || ''}</p>
+          <p className="text-sm text-muted">{practice?.name || ''}</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <StatCard label="Confirmed upcoming" value={stats.confirmed} accent="green" />
-          <StatCard label="Awaiting anaesthetist" value={stats.awaiting} accent="amber" />
+          <StatCard label="Confirmed upcoming" value={stats.confirmed} accent="ok" />
+          <StatCard label="Awaiting anaesthetist" value={stats.awaiting} accent="warn" />
           <StatCard label="Cases this month" value={stats.thisMonth} />
         </div>
 
         {/* Anaesthetist preferences */}
-        <div className="bg-white border border-gray-200 mb-6 overflow-hidden" style={{ borderRadius: 12, borderWidth: 0.5 }}>
+        <div className="bg-surface border border-line mb-6 overflow-hidden rounded shadow-sm">
           <button
             onClick={() => setPrefsOpen(!prefsOpen)}
             className="w-full flex items-center justify-between px-4 py-3"
           >
             <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-[#3C3489]" />
-              <h2 className="text-sm font-semibold text-gray-900">My anaesthetist preferences</h2>
+              <Users className="w-4 h-4 text-brand" />
+              <h2 className="text-sm font-semibold text-ink">My anaesthetist preferences</h2>
               {prefs.length > 0 && (
-                <span className="text-xs text-gray-400">({prefs.length} ranked)</span>
+                <span className="text-xs text-muted-2">({prefs.length} ranked)</span>
               )}
             </div>
-            {prefsOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            {prefsOpen ? <ChevronUp className="w-4 h-4 text-muted-2" /> : <ChevronDown className="w-4 h-4 text-muted-2" />}
           </button>
 
           {prefsOpen && (
-            <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+            <div className="px-4 pb-4 border-t border-line pt-3">
               {prefs.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">
+                <p className="text-sm text-muted-2 text-center py-4">
                   No preferences set. Add anaesthetists to create your ranked list.
                 </p>
               ) : (
                 <>
-                  <p className="text-xs text-gray-400 mb-3">Drag to reorder by preference (1 = first choice).</p>
+                  <p className="text-xs text-muted-2 mb-3">Drag to reorder by preference (1 = first choice).</p>
                   <ReorderableList
                     items={prefs}
                     onReorder={handleReorder}
                     getKey={(p) => p.id}
                     renderItem={(item) => (
                       <div className="flex items-center gap-2">
-                        <AnaesthetistBadge />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-900 truncate">Dr {item.anaesthetist?.full_name || 'Unknown'}</p>
-                          <p className="text-xs text-gray-400 truncate">{item.anaesthetist?.hospitals?.join(', ') || ''}</p>
+                          <RoleName role="anaesthetist" name={`Dr ${item.anaesthetist?.full_name || 'Unknown'}`} />
+                          <p className="text-xs text-muted-2 truncate mt-0.5">{item.anaesthetist?.hospitals?.join(', ') || ''}</p>
                         </div>
                         <button
                           onClick={() => handleRemove(item.id)}
-                          className="p-1 text-red-400 hover:text-red-600 flex-shrink-0"
+                          className="p-1 text-crit border border-crit-line rounded-sm bg-crit-bg hover:opacity-80 flex-shrink-0"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -241,7 +240,7 @@ export function SurgeonPage() {
               {prefs.length < 5 && (
                 <button
                   onClick={() => setShowAddAnaesthetist(true)}
-                  className="w-full mt-3 p-3 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:bg-gray-50"
+                  className="w-full mt-3 p-3 border border-dashed border-line rounded-sm text-sm text-muted hover:border-brand hover:text-brand transition-colors"
                 >
                   + Add anaesthetist
                 </button>
@@ -252,30 +251,29 @@ export function SurgeonPage() {
 
         {showAddAnaesthetist && (
           <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={() => setShowAddAnaesthetist(false)}>
-            <div className="bg-white rounded-xl w-full max-w-md max-h-[80vh] flex flex-col" style={{ borderRadius: 12 }} onClick={(e) => e.stopPropagation()}>
-              <div className="p-4 border-b border-gray-100">
+            <div className="bg-surface rounded w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="p-4 border-b border-line">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">Add anaesthetist</h3>
-                  <button onClick={() => setShowAddAnaesthetist(false)} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                  <h3 className="text-sm font-semibold text-ink">Add anaesthetist</h3>
+                  <button onClick={() => setShowAddAnaesthetist(false)} className="p-1 text-muted-2 hover:text-ink-2"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or hospital..." className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400" autoFocus />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-2" />
+                  <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or hospital..." className="form-input pl-9" autoFocus />
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-2">
                 {filteredAnaesthetists.map((a) => (
-                  <button key={a.id} onClick={() => handleAdd(a)} className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-gray-50 text-left">
-                    <AnaesthetistBadge />
+                  <button key={a.id} onClick={() => handleAdd(a)} className="w-full flex items-center gap-2 p-3 rounded-sm hover:bg-surface-2 text-left">
                     <div className="flex-1">
-                      <p className="text-sm text-gray-900">Dr {a.full_name}</p>
-                      <p className="text-xs text-gray-400">{a.hospitals?.join(', ') || ''}</p>
+                      <RoleName role="anaesthetist" name={`Dr ${a.full_name}`} />
+                      <p className="text-xs text-muted-2 mt-0.5">{a.hospitals?.join(', ') || ''}</p>
                     </div>
-                    <Plus className="w-4 h-4 text-gray-400" />
+                    <Plus className="w-4 h-4 text-muted-2" />
                   </button>
                 ))}
                 {filteredAnaesthetists.length === 0 && (
-                  <p className="text-sm text-gray-400 p-4 text-center">No anaesthetists found</p>
+                  <p className="text-sm text-muted-2 p-4 text-center">No anaesthetists found</p>
                 )}
               </div>
             </div>
@@ -283,11 +281,11 @@ export function SurgeonPage() {
         )}
 
         {/* Upcoming cases */}
-        <h2 className="text-sm font-semibold text-gray-900 mb-3">Upcoming cases</h2>
+        <h2 className="text-sm font-semibold text-ink mb-3">Upcoming cases</h2>
         {loading ? (
-          <p className="text-sm text-gray-400 py-8 text-center">Loading...</p>
+          <p className="text-sm text-muted-2 py-8 text-center">Loading...</p>
         ) : upcoming.length === 0 ? (
-          <p className="text-sm text-gray-400 py-8 text-center">No upcoming cases.</p>
+          <p className="text-sm text-muted-2 py-8 text-center">No upcoming cases.</p>
         ) : (
           <div className="space-y-3 mb-8">
             {upcoming.map((b) => (
@@ -299,9 +297,9 @@ export function SurgeonPage() {
         {/* Recent cases */}
         {recent30.length > 0 && (
           <>
-            <div className="border-t border-gray-200 pt-6 mb-3">
-              <h2 className="text-sm font-semibold text-gray-900">Recent cases</h2>
-              <p className="text-xs text-gray-400">Past 30 days</p>
+            <div className="border-t border-line pt-6 mb-3">
+              <h2 className="text-sm font-semibold text-ink">Recent cases</h2>
+              <p className="text-xs text-muted-2">Past 30 days</p>
             </div>
             <div className="space-y-3">
               {recent30.map((b) => (
@@ -315,15 +313,15 @@ export function SurgeonPage() {
   );
 }
 
-function StatCard({ label, value, accent }: { label: string; value: number; accent?: string }) {
+function StatCard({ label, value, accent }: { label: string; value: number; accent?: 'ok' | 'warn' }) {
   const colorMap: Record<string, string> = {
-    green: 'text-green-600',
-    amber: 'text-amber-600',
+    ok: 'text-ok',
+    warn: 'text-warn',
   };
   return (
-    <div className="bg-white border border-gray-200 p-3" style={{ borderRadius: 12, borderWidth: 0.5 }}>
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className={`text-xl font-semibold mt-1 ${accent ? colorMap[accent] : 'text-gray-900'}`}>{value}</p>
+    <div className="bg-surface border border-line p-3 rounded shadow-sm">
+      <p className="text-xs text-muted">{label}</p>
+      <p className={`figure text-xl font-semibold mt-1 ${accent ? colorMap[accent] : 'text-ink'}`}>{value}</p>
     </div>
   );
 }
@@ -333,38 +331,37 @@ function CaseCard({ booking }: { booking: Booking }) {
   const cancelled = booking.status === 'cancelled';
 
   return (
-    <div className="bg-white border border-gray-200 p-4" style={{ borderRadius: 12, borderWidth: 0.5 }}>
+    <div className="bg-surface border border-line p-4 rounded shadow-sm">
       <div className="flex items-start justify-between gap-3 mb-2">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900">
+          <h3 className="text-sm font-semibold text-ink">
             {booking.patient_initials}, {booking.patient_age} yrs · {booking.procedure}
           </h3>
         </div>
         <StatusBadge status={booking.status} cancelAck={booking.cancel_acknowledged} />
       </div>
 
-      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
         <span className="inline-flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatDate(booking.surgery_date)} · {formatTime(booking.surgery_time)}</span>
         <span className="inline-flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {booking.duration_hours} hrs</span>
         <span className="inline-flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {booking.ot_location}</span>
       </div>
 
       {confirmed && (
-        <div className="mt-3 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700 flex items-center gap-2">
-          <AnaesthetistBadge />
-          Dr {booking.confirmed_anaesthetist!.full_name}
-          <span className="text-green-600">· {booking.anaesthesia_preferences?.map(anaesthesiaLabel).join(', ') || ''}</span>
+        <div className="mt-3 bg-ok-bg border border-ok-line rounded-sm px-3 py-2 text-xs text-ok flex items-center gap-2">
+          <RoleName role="anaesthetist" name={`Dr ${booking.confirmed_anaesthetist!.full_name}`} />
+          <span>· {booking.anaesthesia_preferences?.map(anaesthesiaLabel).join(', ') || ''}</span>
         </div>
       )}
 
       {booking.status === 'cascade_running' && (
-        <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+        <div className="mt-3 bg-warn-bg border border-warn-line rounded-sm px-3 py-2 text-xs text-warn">
           Secretary is confirming anaesthetist
         </div>
       )}
 
       {cancelled && booking.cancel_reason && (
-        <div className="mt-3 text-xs text-red-600">
+        <div className="mt-3 text-xs text-crit">
           Cancelled: {booking.cancel_reason}
           {booking.confirmed_anaesthetist && <span className="block mt-0.5">Notified: Dr {booking.confirmed_anaesthetist.full_name}</span>}
         </div>

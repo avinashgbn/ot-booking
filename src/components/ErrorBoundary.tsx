@@ -15,10 +15,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="min-h-screen flex items-center justify-center bg-bg px-4">
           <div className="max-w-md text-center">
-            <h1 className="text-lg font-semibold text-gray-900 mb-2">Something went wrong</h1>
-            <p className="text-sm text-gray-500 break-words">{this.state.message}</p>
+            <h1 className="text-lg font-semibold text-ink mb-2">Something went wrong</h1>
+            <p className="text-sm text-muted break-words">{this.state.message}</p>
           </div>
         </div>
       );

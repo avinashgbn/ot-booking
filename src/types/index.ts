@@ -4,7 +4,7 @@ export type BookingStatus = 'pending' | 'cascade_running' | 'confirmed' | 'cance
 
 export type CascadeMode = 'sequential' | 'simultaneous';
 
-export type CascadeOutcome = 'pending' | 'accepted' | 'declined' | 'expired' | 'released';
+export type CascadeOutcome = 'pending' | 'accepted' | 'declined' | 'expired' | 'released' | 'send_failed';
 
 export type WhatsAppDirection = 'outbound' | 'inbound';
 
