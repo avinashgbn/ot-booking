@@ -4,14 +4,19 @@ import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { normalisePhone } from '@/lib/utils';
 import { Activity, Lock, Check } from 'lucide-react';
-import type { User, Practice } from '@/types';
+import type { User } from '@/types';
+
+// Shape returned by the get_invite() RPC — only what this screen shows.
+type Invite = Pick<User, 'full_name' | 'phone' | 'role' | 'active' | 'invite_expires_at'> & {
+  practice_name: string | null;
+};
 
 export function JoinPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [practice, setPractice] = useState<Practice | null>(null);
+  const [user, setUser] = useState<Invite | null>(null);
+  const [practice, setPractice] = useState<{ name: string } | null>(null);
   const [expired, setExpired] = useState(false);
   const [fullName, setFullName] = useState('');
   const [editingName, setEditingName] = useState(false);
@@ -26,19 +31,19 @@ export function JoinPage() {
         return;
       }
 
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('invite_token', token)
+      // Signed-out visitors can't read the users table; get_invite returns
+      // just this invite's display fields for an exact token match.
+      const { data: inviteData, error: inviteError } = await supabase
+        .rpc('get_invite', { p_token: token })
         .maybeSingle();
 
-      if (userError || !userData) {
+      if (inviteError || !inviteData) {
         setExpired(true);
         setLoading(false);
         return;
       }
 
-      const u = userData as User;
+      const u = inviteData as Invite;
 
       if (u.invite_expires_at && new Date(u.invite_expires_at) < new Date()) {
         setExpired(true);
@@ -54,15 +59,7 @@ export function JoinPage() {
 
       setUser(u);
       setFullName(u.full_name);
-
-      if (u.practice_id) {
-        const { data: pData } = await supabase
-          .from('practices')
-          .select('*')
-          .eq('id', u.practice_id)
-          .maybeSingle();
-        if (pData) setPractice(pData as Practice);
-      }
+      if (u.practice_name) setPractice({ name: u.practice_name });
 
       setLoading(false);
     })();
