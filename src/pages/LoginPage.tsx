@@ -92,7 +92,7 @@ export function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-muted-2 mt-4">
-          Forgot your PIN? Contact your practice admin.
+          Forgot your PIN? Contact your clinic admin.
         </p>
       </div>
     </div>

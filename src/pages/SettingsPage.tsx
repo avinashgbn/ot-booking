@@ -65,7 +65,7 @@ export function SettingsPage() {
   }, [loadPractice, loadUsers, loadLinkedSurgeons, loadAnaesthetists]);
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'practice', label: 'Practice' },
+    { key: 'practice', label: 'Clinic' },
     { key: 'users', label: 'Surgeons & Secretaries' },
     { key: 'directory', label: 'Anaesthetist Directory' },
     { key: 'lists', label: 'Anaesthetist Lists' },
@@ -115,7 +115,7 @@ export function SettingsPage() {
         {tab === 'lists' && <ListsTab surgeons={[...surgeons, ...linkedSurgeons]} anaesthetists={anaesthetists} />}
         {tab === 'admin' && user?.role === 'practice_admin' && <AdminTab users={users} currentUserId={user.id} onChanged={loadUsers} />}
         {tab === 'admin' && user?.role !== 'practice_admin' && (
-          <p className="text-sm text-muted-2">Admin settings are only available to practice admins.</p>
+          <p className="text-sm text-muted-2">Admin settings are only available to clinic admins.</p>
         )}
       </div>
     </div>
@@ -133,7 +133,7 @@ function PracticeTab({ practice, onUpdate }: { practice: Practice | null; onUpda
     if (!practice) return;
     const { error } = await supabase.from('practices').update({ name }).eq('id', practice.id);
     if (error) { toast.error('Failed to update'); return; }
-    toast.success('Practice name updated');
+    toast.success('Clinic name updated');
     onUpdate();
   };
 
@@ -142,14 +142,14 @@ function PracticeTab({ practice, onUpdate }: { practice: Practice | null; onUpda
   return (
     <div className="space-y-4">
       <div className="bg-surface border border-line rounded p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-ink mb-4">Practice details</h2>
+        <h2 className="text-sm font-semibold text-ink mb-4">Clinic details</h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-muted mb-1.5">Practice name</label>
+            <label className="block text-xs font-medium text-muted mb-1.5">Clinic name</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="form-input" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted mb-1.5">Practice ID</label>
+            <label className="block text-xs font-medium text-muted mb-1.5">Clinic ID</label>
             <input type="text" value={practice.id} disabled className="form-input text-muted-2 font-mono text-xs" />
           </div>
           <button onClick={handleSave} className="px-4 py-2 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong">
@@ -188,7 +188,7 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
     }
 
     if (result.linked) {
-      toast.success(`Dr ${result.surgeon.full_name} linked to this practice — they already have an account elsewhere, so no new invite is needed.`);
+      toast.success(`Dr ${result.surgeon.full_name} linked to this clinic — they already have an account elsewhere, so no new invite is needed.`);
     } else {
       await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
         method: 'POST',
@@ -237,7 +237,7 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
 
   const handleAdd = async () => {
     if (!newName.trim() || !newPhone.trim()) { toast.error('Enter name and phone'); return; }
-    if (!practiceId) { toast.error('No practice found'); return; }
+    if (!practiceId) { toast.error('No clinic found'); return; }
     setAdding(true);
 
     const phone = normalisePhone(newPhone);
@@ -253,7 +253,7 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
   };
 
   const handleUnlink = async (u: User) => {
-    if (!confirm(`Unlink Dr ${u.full_name} from this practice? They'll remain registered at their home practice.`)) return;
+    if (!confirm(`Unlink Dr ${u.full_name} from this clinic? They'll remain registered at their home clinic.`)) return;
     const { error } = await supabase.from('practice_surgeons').delete().eq('practice_id', practiceId).eq('surgeon_id', u.id);
     if (error) { toast.error('Failed to unlink'); return; }
     toast.success('Surgeon unlinked');
@@ -383,7 +383,7 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
         <div className="bg-surface border border-line rounded overflow-hidden shadow-sm">
           <div className="px-4 py-3 border-b border-line">
             <h3 className="text-sm font-semibold text-ink">Linked surgeons</h3>
-            <p className="text-xs text-muted-2 mt-0.5">Surgeons who also work elsewhere and are shared into this practice for booking. Their account is managed at their home practice.</p>
+            <p className="text-xs text-muted-2 mt-0.5">Surgeons who also work elsewhere and are shared into this clinic for booking. Their account is managed at their home clinic.</p>
           </div>
           <table className="w-full text-sm">
             <tbody>
@@ -420,7 +420,7 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
                   <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="9232 2222" className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none" />
                 </div>
                 {newRole === 'surgeon' && (
-                  <p className="text-xs text-muted-2 mt-1">If this number already belongs to a surgeon at another practice, they'll be linked here instead of getting a new invite.</p>
+                  <p className="text-xs text-muted-2 mt-1">If this number already belongs to a surgeon at another clinic, they'll be linked here instead of getting a new invite.</p>
                 )}
               </div>
               <div className="flex gap-3 pt-2">
@@ -708,7 +708,7 @@ function AdminTab({ users, currentUserId, onChanged }: { users: User[]; currentU
     <div className="space-y-4">
       <div className="bg-surface border border-line rounded p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-ink mb-4">Transfer admin role</h2>
-        <p className="text-xs text-muted mb-3">Transfer the practice admin role to another secretary. You will become a regular secretary.</p>
+        <p className="text-xs text-muted mb-3">Transfer the clinic admin role to another secretary. You will become a regular secretary.</p>
         <div className="flex gap-2">
           <select value={newAdminId} onChange={(e) => setNewAdminId(e.target.value)} className="form-input flex-1">
             <option value="">Select secretary...</option>
@@ -725,7 +725,7 @@ function AdminTab({ users, currentUserId, onChanged }: { users: User[]; currentU
           <ShieldAlert className="w-5 h-5 text-crit" />
           <h2 className="text-sm font-semibold text-crit">Danger zone</h2>
         </div>
-        <p className="text-xs text-muted">Contact the platform superadmin to delete the practice or reset all data.</p>
+        <p className="text-xs text-muted">Contact the platform superadmin to delete the clinic or reset all data.</p>
       </div>
     </div>
   );

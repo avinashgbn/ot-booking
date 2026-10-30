@@ -122,7 +122,7 @@ export function JoinPage() {
             <Lock className="w-6 h-6 text-crit" />
           </div>
           <h1 className="text-lg font-semibold text-ink mb-2">This link has expired</h1>
-          <p className="text-sm text-muted">Contact your practice admin to resend your invite.</p>
+          <p className="text-sm text-muted">Contact your clinic admin to resend your invite.</p>
         </div>
       </div>
     );
@@ -151,7 +151,7 @@ export function JoinPage() {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-muted mb-1">Practice</label>
+              <label className="block text-xs font-medium text-muted mb-1">Clinic</label>
               <input
                 type="text"
                 value={practice?.name || ''}

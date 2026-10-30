@@ -139,7 +139,7 @@ export function NewBookingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user?.practice_id) { toast.error('No practice found'); return; }
+    if (!user?.practice_id) { toast.error('No clinic found'); return; }
     if (!selectedSurgeonId) { toast.error('Select a surgeon'); return; }
     if (!form.patient_initials.trim()) { toast.error('Enter patient initials'); return; }
     if (!form.patient_age) { toast.error('Enter patient age'); return; }

@@ -49,7 +49,7 @@ export function SuperadminDashboardPage() {
     await supabase.from('superadmin_audit').insert({
       action: 'open_practice',
       target_practice_id: practice.id,
-      notes: `Opened practice: ${practice.name}`,
+      notes: `Opened clinic: ${practice.name}`,
     });
     toast.success(`Viewing ${practice.name}`);
   };
@@ -61,7 +61,7 @@ export function SuperadminDashboardPage() {
 
     const { data: practice, error: pError } = await supabase
       .from('practices').insert({ name }).select().single();
-    if (pError || !practice) { toast.error('Failed to create practice'); return; }
+    if (pError || !practice) { toast.error('Failed to create clinic'); return; }
 
     const { data: adminUser, error: uError } = await supabase.from('users').insert({
       practice_id: practice.id,
@@ -90,10 +90,10 @@ export function SuperadminDashboardPage() {
     await supabase.from('superadmin_audit').insert({
       action: 'create_practice',
       target_practice_id: practice.id,
-      notes: `Created practice "${name}" with admin ${adminName}`,
+      notes: `Created clinic "${name}" with admin ${adminName}`,
     });
 
-    toast.success('Practice created. Invite sent via WhatsApp to admin.');
+    toast.success('Clinic created. Invite sent via WhatsApp to admin.');
     setShowCreate(false);
     fetchData();
   };
@@ -131,7 +131,7 @@ export function SuperadminDashboardPage() {
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
-          <StatCard icon={<Building2 className="w-4 h-4" />} label="Total practices" value={stats.practices} />
+          <StatCard icon={<Building2 className="w-4 h-4" />} label="Total clinics" value={stats.practices} />
           <StatCard icon={<Users className="w-4 h-4" />} label="Total users" value={stats.users} />
           <StatCard icon={<Calendar className="w-4 h-4" />} label="Bookings this month" value={stats.bookingsThisMonth} />
         </div>
@@ -139,12 +139,12 @@ export function SuperadminDashboardPage() {
         {/* Practices table */}
         <div className="bg-surface border border-line overflow-hidden rounded shadow-sm">
           <div className="flex items-center justify-between px-5 py-4 border-b border-line">
-            <h2 className="text-sm font-semibold text-ink">All practices</h2>
+            <h2 className="text-sm font-semibold text-ink">All clinics</h2>
             <button
               onClick={() => setShowCreate(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-ink rounded-sm hover:opacity-90"
             >
-              <Plus className="w-4 h-4" /> New practice
+              <Plus className="w-4 h-4" /> New clinic
             </button>
           </div>
           <table className="w-full text-sm">
@@ -182,7 +182,7 @@ export function SuperadminDashboardPage() {
               })}
             </tbody>
           </table>
-          {practices.length === 0 && <p className="text-sm text-muted-2 p-6 text-center">No practices yet.</p>}
+          {practices.length === 0 && <p className="text-sm text-muted-2 p-6 text-center">No clinics yet.</p>}
         </div>
 
         {/* Audit log */}
@@ -230,12 +230,12 @@ function CreatePracticeModal({ onClose, onCreate }: { onClose: () => void; onCre
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-surface rounded w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-ink">Create new practice</h3>
+          <h3 className="text-sm font-semibold text-ink">Create new clinic</h3>
           <button onClick={onClose} className="p-1 text-muted-2 hover:text-ink-2"><X className="w-4 h-4" /></button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-muted mb-1.5">Practice name</label>
+            <label className="block text-xs font-medium text-muted mb-1.5">Clinic name</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Novena Surgical Group" className="form-input" autoFocus />
           </div>
           <div>
