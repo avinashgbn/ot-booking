@@ -23,15 +23,21 @@ whatsapp_log.anaesthetist_id (SET NULL), anaesthetist_preferences and
 anaesthetist_practice_names (CASCADE) are unchanged.
 
 ## Rollback
+Restores the live definitions recorded before this migration (2026-10-31,
+pg_get_constraintdef): both foreign keys had no ON DELETE clause, i.e.
+NO ACTION. The repo's earlier migrations say CASCADE / SET NULL, but live
+never had those; do not roll back to them, as that would let a delete wipe
+request history and blank confirmed bookings.
+
 DROP FUNCTION IF EXISTS public.anaesthetists_in_use();
 ALTER TABLE bookings
   DROP CONSTRAINT bookings_confirmed_anaesthetist_id_fkey,
   ADD CONSTRAINT bookings_confirmed_anaesthetist_id_fkey
-    FOREIGN KEY (confirmed_anaesthetist_id) REFERENCES anaesthetists(id) ON DELETE SET NULL;
+    FOREIGN KEY (confirmed_anaesthetist_id) REFERENCES anaesthetists(id);
 ALTER TABLE cascade_steps
   DROP CONSTRAINT cascade_steps_anaesthetist_id_fkey,
   ADD CONSTRAINT cascade_steps_anaesthetist_id_fkey
-    FOREIGN KEY (anaesthetist_id) REFERENCES anaesthetists(id) ON DELETE CASCADE;
+    FOREIGN KEY (anaesthetist_id) REFERENCES anaesthetists(id);
 */
 
 ALTER TABLE cascade_steps
