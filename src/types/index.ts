@@ -55,6 +55,15 @@ export interface Anaesthetist {
   phone: string;
   hospitals: string[];
   active: boolean;
+  added_by_practice_id: string | null;
+  created_at: string;
+}
+
+export interface AnaesthetistPracticeName {
+  id: string;
+  anaesthetist_id: string;
+  practice_id: string;
+  display_name: string;
   created_at: string;
 }
 

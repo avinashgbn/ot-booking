@@ -5,7 +5,9 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { RoleBadge, RoleName } from '@/components/Badges';
 import { ReorderableList } from '@/components/ReorderableList';
-import { normalisePhone } from '@/lib/utils';
+import { normalisePhone, INVALID_PHONE_MESSAGE } from '@/lib/utils';
+import { stripDoctorTitle } from '@/lib/names';
+import { usePracticeNames, anaesthetistName, practiceNameFor, type PracticeNames } from '@/lib/anaesthetistNames';
 import type { User, Anaesthetist, AnaesthetistPreference, Practice, PracticeSurgeon } from '@/types';
 import {
   ArrowLeft, Search, Plus, X, Trash2, Send, ShieldAlert, Contact
@@ -22,6 +24,8 @@ export function SettingsPage() {
   const [anaesthetists, setAnaesthetists] = useState<Anaesthetist[]>([]);
   const [surgeons, setSurgeons] = useState<User[]>([]);
   const [linkedSurgeons, setLinkedSurgeons] = useState<User[]>([]);
+  const [inUse, setInUse] = useState<Set<string>>(new Set());
+  const { names, reload: reloadNames } = usePracticeNames([user?.practice_id]);
 
   const loadPractice = useCallback(async () => {
     if (!user?.practice_id) return;
@@ -55,6 +59,11 @@ export function SettingsPage() {
   const loadAnaesthetists = useCallback(async () => {
     const { data } = await supabase.from('anaesthetists').select('*').order('full_name');
     setAnaesthetists((data || []) as Anaesthetist[]);
+    // Ids of anaesthetists on any booking or request, across all practices
+    // (RLS hides other practices' bookings, so this comes from an RPC).
+    const { data: used } = await supabase.rpc('anaesthetists_in_use');
+    setInUse(new Set(((used || []) as unknown[]).map((r) =>
+      typeof r === 'string' ? r : String(Object.values(r as Record<string, unknown>)[0]))));
   }, []);
 
   useEffect(() => {
@@ -111,8 +120,24 @@ export function SettingsPage() {
             onChanged={async () => { await loadUsers(); await loadLinkedSurgeons(); }}
           />
         )}
-        {tab === 'directory' && <DirectoryTab anaesthetists={anaesthetists} onChanged={loadAnaesthetists} />}
-        {tab === 'lists' && <ListsTab surgeons={[...surgeons, ...linkedSurgeons]} anaesthetists={anaesthetists} />}
+        {tab === 'directory' && (
+          <DirectoryTab
+            anaesthetists={anaesthetists}
+            onChanged={loadAnaesthetists}
+            viewer={user}
+            names={names}
+            onNamesChanged={reloadNames}
+            inUse={inUse}
+          />
+        )}
+        {tab === 'lists' && (
+          <ListsTab
+            surgeons={[...surgeons, ...linkedSurgeons]}
+            anaesthetists={anaesthetists}
+            names={names}
+            practiceId={user?.practice_id}
+          />
+        )}
         {tab === 'admin' && user?.role === 'practice_admin' && <AdminTab users={users} currentUserId={user.id} onChanged={loadUsers} />}
         {tab === 'admin' && user?.role !== 'practice_admin' && (
           <p className="text-sm text-muted-2">Admin settings are only available to practice admins.</p>
@@ -238,9 +263,10 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
   const handleAdd = async () => {
     if (!newName.trim() || !newPhone.trim()) { toast.error('Enter name and phone'); return; }
     if (!practiceId) { toast.error('No practice found'); return; }
+    const phone = normalisePhone(newPhone);
+    if (!phone) { toast.error(INVALID_PHONE_MESSAGE); return; }
     setAdding(true);
 
-    const phone = normalisePhone(newPhone);
     const ok = newRole === 'surgeon' ? await handleAddSurgeon(phone) : await handleAddSecretary(phone);
 
     if (ok) {
@@ -437,17 +463,38 @@ function UsersTab({ users, linkedSurgeons, currentUserId, practiceId, onChanged 
   );
 }
 
-function DirectoryTab({ anaesthetists, onChanged }: { anaesthetists: Anaesthetist[]; onChanged: () => void }) {
+function DirectoryTab({ anaesthetists, onChanged, viewer, names, onNamesChanged, inUse }: {
+  anaesthetists: Anaesthetist[];
+  onChanged: () => void;
+  viewer: User | null;
+  names: PracticeNames;
+  onNamesChanged: () => void;
+  inUse: Set<string>;
+}) {
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newHospitals, setNewHospitals] = useState('');
+  // "Already in the directory" prompt, and the "Edit clinic name" dialog.
+  const [existing, setExisting] = useState<{ anaesthetist: Anaesthetist; name: string } | null>(null);
+  const [editing, setEditing] = useState<{ anaesthetist: Anaesthetist; name: string } | null>(null);
+
+  const practiceId = viewer?.practice_id ?? null;
+  const isSuperadmin = viewer?.role === 'superadmin';
+  const isClinicStaff = !!practiceId && (viewer?.role === 'practice_admin' || viewer?.role === 'secretary');
+  // Mirrors the anaesthetists_update/delete policies: the practice that added
+  // them, or a superadmin.
+  const canManage = (a: Anaesthetist) =>
+    isSuperadmin || (isClinicStaff && !!a.added_by_practice_id && a.added_by_practice_id === practiceId);
+  const displayOf = (a: Anaesthetist) => anaesthetistName(names, a, practiceId);
 
   const filtered = anaesthetists.filter((a) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return a.full_name.toLowerCase().includes(q) || a.hospitals?.some((h) => h.toLowerCase().includes(q));
+    return displayOf(a).toLowerCase().includes(q)
+      || a.full_name.toLowerCase().includes(q)
+      || a.hospitals?.some((h) => h.toLowerCase().includes(q));
   });
 
   // Contact Picker API: Android Chrome only (no iOS Safari / desktop support).
@@ -470,12 +517,35 @@ function DirectoryTab({ anaesthetists, onChanged }: { anaesthetists: Anaesthetis
     }
   };
 
+  const resetAddForm = () => {
+    setNewName(''); setNewPhone(''); setNewHospitals('');
+    setShowAdd(false);
+  };
+
   const handleAdd = async () => {
-    if (!newName.trim() || !newPhone.trim()) { toast.error('Enter name and phone'); return; }
+    const name = stripDoctorTitle(newName);
+    if (!name || !newPhone.trim()) { toast.error('Enter name and phone'); return; }
+    const phone = normalisePhone(newPhone);
+    if (!phone) { toast.error(INVALID_PHONE_MESSAGE); return; }
+
+    // Phone is the identity key: if this number is already in the shared
+    // directory, don't create a second record — offer a clinic name instead.
+    const { data: found } = await supabase.from('anaesthetists').select('*').eq('phone', phone).maybeSingle();
+    if (found) {
+      resetAddForm();
+      if (!isClinicStaff) {
+        toast(`This number is already in the directory as Dr ${stripDoctorTitle((found as Anaesthetist).full_name)}`);
+        return;
+      }
+      setExisting({ anaesthetist: found as Anaesthetist, name });
+      return;
+    }
+
     const hospitals = newHospitals.split(',').map((h) => h.trim()).filter(Boolean);
+    // added_by_practice_id is filled by the column default (the adder's practice).
     const { error } = await supabase.from('anaesthetists').insert({
-      full_name: newName.trim(),
-      phone: normalisePhone(newPhone),
+      full_name: name,
+      phone,
       hospitals,
       active: true,
     });
@@ -484,8 +554,64 @@ function DirectoryTab({ anaesthetists, onChanged }: { anaesthetists: Anaesthetis
       return;
     }
     toast.success('Anaesthetist added');
-    setNewName(''); setNewPhone(''); setNewHospitals('');
-    setShowAdd(false);
+    resetAddForm();
+    onChanged();
+  };
+
+  const savePracticeName = async (anaesthetistId: string, rawName: string) => {
+    const name = stripDoctorTitle(rawName);
+    if (!practiceId || !name) { toast.error('Enter a name'); return false; }
+    const { error } = await supabase
+      .from('anaesthetist_practice_names')
+      .upsert({ anaesthetist_id: anaesthetistId, practice_id: practiceId, display_name: name },
+        { onConflict: 'anaesthetist_id,practice_id' });
+    if (error) { toast.error('Failed to save name'); return false; }
+    toast.success(`Saved. Your clinic will see them as Dr ${name}`);
+    onNamesChanged();
+    return true;
+  };
+
+  const clearPracticeName = async (anaesthetistId: string) => {
+    if (!practiceId) return;
+    const { error } = await supabase
+      .from('anaesthetist_practice_names')
+      .delete()
+      .eq('anaesthetist_id', anaesthetistId)
+      .eq('practice_id', practiceId);
+    if (error) { toast.error('Failed to clear name'); return; }
+    setEditing(null);
+    onNamesChanged();
+  };
+
+  const handleArchive = async (a: Anaesthetist) => {
+    const name = displayOf(a);
+    if (!confirm(`Archive Dr ${name}? They won't be offered for new requests. Their past bookings and request history are kept, and you can restore them at any time.`)) return;
+    const { data, error } = await supabase.from('anaesthetists').update({ active: false }).eq('id', a.id).select('id');
+    if (error || !data?.length) { toast.error('Failed to archive'); return; }
+    toast.success(`Dr ${name} archived`);
+    onChanged();
+  };
+
+  const handleRestore = async (a: Anaesthetist) => {
+    const name = displayOf(a);
+    const { data, error } = await supabase.from('anaesthetists').update({ active: true }).eq('id', a.id).select('id');
+    if (error || !data?.length) { toast.error('Failed to restore'); return; }
+    toast.success(`Dr ${name} restored and can be offered for new requests again`);
+    onChanged();
+  };
+
+  const handleDelete = async (a: Anaesthetist) => {
+    const name = displayOf(a);
+    if (!confirm(`Delete Dr ${name} from the directory? This can't be undone.`)) return;
+    const { data, error } = await supabase.from('anaesthetists').delete().eq('id', a.id).select('id');
+    // 23503: still referenced by a booking or request (ON DELETE RESTRICT).
+    if (error?.code === '23503') {
+      toast.error(`Dr ${name} has bookings, so they can't be deleted. Archive them instead.`);
+      onChanged();
+      return;
+    }
+    if (error || !data?.length) { toast.error('Failed to delete'); return; }
+    toast.success(`Dr ${name} deleted`);
     onChanged();
   };
 
@@ -507,12 +633,47 @@ function DirectoryTab({ anaesthetists, onChanged }: { anaesthetists: Anaesthetis
       </div>
 
       <div className="space-y-2">
-        {filtered.map((a) => (
-          <div key={a.id} className="flex items-center gap-3 px-4 py-3 bg-surface border border-line rounded-sm">
-            <RoleName role="anaesthetist" name={`Dr ${a.full_name}`} />
-            <p className="text-xs text-muted flex-1">{a.hospitals?.join(', ') || 'No hospitals listed'} · {a.phone}</p>
-          </div>
-        ))}
+        {filtered.map((a) => {
+          const display = displayOf(a);
+          const canonical = stripDoctorTitle(a.full_name);
+          return (
+            <div key={a.id} className={`flex flex-wrap items-center gap-3 px-4 py-3 bg-surface border border-line rounded-sm ${a.active ? '' : 'opacity-70'}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <RoleName role="anaesthetist" name={`Dr ${display}`} />
+                  {!a.active && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-surface-2 text-muted border border-line">Archived</span>
+                  )}
+                </div>
+                {display !== canonical && (
+                  <p className="text-xs text-muted-2 mt-0.5">Directory name: Dr {canonical}</p>
+                )}
+                <p className="text-xs text-muted mt-0.5">{a.hospitals?.join(', ') || 'No hospitals listed'} · {a.phone}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {isClinicStaff && (
+                  <button
+                    onClick={() => setEditing({ anaesthetist: a, name: display })}
+                    className="px-3 py-1.5 text-xs font-medium text-brand border border-line rounded-sm hover:bg-surface-2"
+                  >
+                    Edit clinic name
+                  </button>
+                )}
+                {canManage(a) ? (
+                  !a.active ? (
+                    <button onClick={() => handleRestore(a)} className="px-3 py-1.5 text-xs font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2">Restore</button>
+                  ) : inUse.has(a.id) ? (
+                    <button onClick={() => handleArchive(a)} className="px-3 py-1.5 text-xs font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2">Archive</button>
+                  ) : (
+                    <button onClick={() => handleDelete(a)} className="px-3 py-1.5 text-xs font-medium text-crit border border-crit-line rounded-sm bg-crit-bg hover:opacity-80">Delete</button>
+                  )
+                ) : (
+                  <span className="text-xs text-muted-2">{a.added_by_practice_id ? 'Managed by another clinic' : 'Shared directory'}</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
         {filtered.length === 0 && <p className="text-sm text-muted-2 p-4 text-center">No anaesthetists found</p>}
       </div>
 
@@ -523,7 +684,10 @@ function DirectoryTab({ anaesthetists, onChanged }: { anaesthetists: Anaesthetis
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-muted mb-1.5">Full name</label>
-                <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} className="form-input" autoFocus />
+                <div className="flex items-center bg-surface-2 border border-line rounded-sm overflow-hidden">
+                  <span className="px-3 py-2.5 text-sm text-muted border-r border-line">Dr</span>
+                  <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none" autoFocus />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted mb-1.5">Mobile number</label>
@@ -544,11 +708,82 @@ function DirectoryTab({ anaesthetists, onChanged }: { anaesthetists: Anaesthetis
           </div>
         </div>
       )}
+
+      {existing && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={() => setExisting(null)}>
+          <div className="bg-surface rounded w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-ink mb-2">Already in the directory</h3>
+            <p className="text-sm text-muted mb-4">
+              This number belongs to Dr {stripDoctorTitle(existing.anaesthetist.full_name)}, who is already in the shared directory. What does your clinic call them?
+            </p>
+            <label className="block text-xs font-medium text-muted mb-1.5">Name used at your clinic</label>
+            <div className="flex items-center bg-surface-2 border border-line rounded-sm overflow-hidden">
+              <span className="px-3 py-2.5 text-sm text-muted border-r border-line">Dr</span>
+              <input
+                type="text"
+                value={existing.name}
+                onChange={(e) => setExisting({ ...existing, name: e.target.value })}
+                className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button onClick={() => setExisting(null)} className="flex-1 py-2.5 text-sm font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2">Cancel</button>
+              <button
+                onClick={async () => { if (await savePracticeName(existing.anaesthetist.id, existing.name)) setExisting(null); }}
+                className="flex-1 py-2.5 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong"
+              >
+                Save name
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editing && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50" onClick={() => setEditing(null)}>
+          <div className="bg-surface rounded w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-ink mb-4">Edit clinic name</h3>
+            <label className="block text-xs font-medium text-muted mb-1.5">Name used at your clinic</label>
+            <div className="flex items-center bg-surface-2 border border-line rounded-sm overflow-hidden">
+              <span className="px-3 py-2.5 text-sm text-muted border-r border-line">Dr</span>
+              <input
+                type="text"
+                value={editing.name}
+                onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none"
+                autoFocus
+              />
+            </div>
+            <p className="text-xs text-muted-2 mt-1.5">Directory name: Dr {stripDoctorTitle(editing.anaesthetist.full_name)}</p>
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => clearPracticeName(editing.anaesthetist.id)}
+                disabled={!practiceNameFor(names, editing.anaesthetist.id, practiceId)}
+                className="flex-1 py-2.5 text-sm font-medium text-ink-2 border border-line rounded-sm hover:bg-surface-2 disabled:opacity-40"
+              >
+                Clear
+              </button>
+              <button
+                onClick={async () => { if (await savePracticeName(editing.anaesthetist.id, editing.name)) setEditing(null); }}
+                className="flex-1 py-2.5 text-sm font-medium text-white bg-brand rounded-sm hover:bg-brand-strong"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ListsTab({ surgeons, anaesthetists }: { surgeons: User[]; anaesthetists: Anaesthetist[] }) {
+function ListsTab({ surgeons, anaesthetists, names, practiceId }: {
+  surgeons: User[];
+  anaesthetists: Anaesthetist[];
+  names: PracticeNames;
+  practiceId: string | null | undefined;
+}) {
   const [selectedSurgeon, setSelectedSurgeon] = useState('');
   const [prefs, setPrefs] = useState<AnaesthetistPreference[]>([]);
   const [showDirectory, setShowDirectory] = useState(false);
@@ -608,10 +843,14 @@ function ListsTab({ surgeons, anaesthetists }: { surgeons: User[]; anaesthetists
     setSearch('');
   };
 
+  // Archived anaesthetists can't be added to a list.
   const filteredAnaesthetists = anaesthetists.filter((a) => {
+    if (!a.active) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return a.full_name.toLowerCase().includes(q) || a.hospitals?.some((h) => h.toLowerCase().includes(q));
+    return anaesthetistName(names, a, practiceId).toLowerCase().includes(q)
+      || a.full_name.toLowerCase().includes(q)
+      || a.hospitals?.some((h) => h.toLowerCase().includes(q));
   });
 
   return (
@@ -634,8 +873,11 @@ function ListsTab({ surgeons, anaesthetists }: { surgeons: User[]; anaesthetists
             onReorder={handleReorder}
             getKey={(p) => p.id}
             renderItem={(item) => (
-              <div className="flex items-center gap-2">
-                <RoleName role="anaesthetist" name={`Dr ${item.anaesthetist?.full_name || 'Unknown'}`} />
+              <div className={`flex items-center gap-2 ${item.anaesthetist && !item.anaesthetist.active ? 'opacity-60' : ''}`}>
+                <RoleName role="anaesthetist" name={`Dr ${anaesthetistName(names, item.anaesthetist, practiceId)}`} />
+                {item.anaesthetist && !item.anaesthetist.active && (
+                  <span className="text-xs text-muted-2">Archived – won't be sent requests</span>
+                )}
                 <span className="flex-1" />
                 <button onClick={() => remove(item.id)} className="p-1 text-crit border border-crit-line rounded-sm bg-crit-bg hover:opacity-80"><X className="w-4 h-4" /></button>
               </div>
@@ -668,7 +910,7 @@ function ListsTab({ surgeons, anaesthetists }: { surgeons: User[]; anaesthetists
               {filteredAnaesthetists.map((a) => (
                 <button key={a.id} onClick={() => add(a)} className="w-full flex items-center gap-2 p-3 rounded-sm hover:bg-surface-2 text-left">
                   <div className="flex-1">
-                    <RoleName role="anaesthetist" name={`Dr ${a.full_name}`} />
+                    <RoleName role="anaesthetist" name={`Dr ${anaesthetistName(names, a, practiceId)}`} />
                     <p className="text-xs text-muted-2 mt-0.5">{a.hospitals?.join(', ') || ''}</p>
                   </div>
                 </button>

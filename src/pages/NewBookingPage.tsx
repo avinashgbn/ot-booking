@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { RoleName } from '@/components/Badges';
 import { normalisePhone, anaesthesiaLabel } from '@/lib/utils';
 import { startCascadeEngine } from '@/lib/cascadeEngine';
+import { usePracticeNames, anaesthetistName } from '@/lib/anaesthetistNames';
 import type { User, Anaesthetist, AnaesthetistPreference, CascadeMode, AnaesthesiaType } from '@/types';
 import {
   ArrowLeft, ArrowUp, ArrowDown, X, Search, Check, ChevronRight, Layers, Zap
@@ -21,6 +22,8 @@ export function NewBookingPage() {
   const [showDirectory, setShowDirectory] = useState(false);
   const [directorySearch, setDirectorySearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const { names } = usePracticeNames([user?.practice_id]);
+  const nameOf = (a: Anaesthetist | null | undefined) => anaesthetistName(names, a, user?.practice_id);
 
   const [form, setForm] = useState({
     patient_initials: '',
@@ -150,7 +153,9 @@ export function NewBookingPage() {
     if (!form.surgery_time) { toast.error('Select time'); return; }
     if (!form.duration_hours) { toast.error('Enter duration'); return; }
     if (form.anaesthesia_preferences.length === 0) { toast.error('Select at least one anaesthesia preference'); return; }
-    if (preferences.length === 0) { toast.error('Add at least one anaesthetist'); return; }
+    // Archived anaesthetists stay on the surgeon's list but are never sent requests.
+    const sendable = preferences.filter((p) => p.anaesthetist?.active !== false);
+    if (sendable.length === 0) { toast.error('Add at least one anaesthetist'); return; }
 
     setSubmitting(true);
 
@@ -182,10 +187,10 @@ export function NewBookingPage() {
       return;
     }
 
-    const stepInserts = preferences.map((p) => ({
+    const stepInserts = sendable.map((p, i) => ({
       booking_id: booking.id,
       anaesthetist_id: p.anaesthetist_id,
-      rank: p.rank,
+      rank: i + 1,
       outcome: 'pending' as const,
     }));
 
@@ -251,6 +256,7 @@ export function NewBookingPage() {
     if (!directorySearch.trim()) return true;
     const q = directorySearch.toLowerCase();
     return (
+      nameOf(a).toLowerCase().includes(q) ||
       a.full_name.toLowerCase().includes(q) ||
       a.hospitals?.some((h) => h.toLowerCase().includes(q))
     );
@@ -424,9 +430,12 @@ export function NewBookingPage() {
           {selectedSurgeonId && (
             <div className="space-y-2">
               {preferences.map((pref, i) => (
-                <div key={pref.id} className="flex items-center gap-2 p-3 border border-line rounded-sm">
+                <div key={pref.id} className={`flex items-center gap-2 p-3 border border-line rounded-sm ${pref.anaesthetist?.active === false ? 'opacity-60' : ''}`}>
                   <span className="figure text-sm font-medium text-muted-2 w-6">{pref.rank}</span>
-                  <RoleName role="anaesthetist" name={`Dr ${pref.anaesthetist?.full_name || 'Unknown'}`} />
+                  <RoleName role="anaesthetist" name={`Dr ${nameOf(pref.anaesthetist)}`} />
+                  {pref.anaesthetist?.active === false && (
+                    <span className="text-xs text-muted-2">Archived – won't be sent requests</span>
+                  )}
                   <span className="flex-1" />
                   <button type="button" onClick={() => movePreference(i, -1)} disabled={i === 0} className="p-1 text-muted-2 hover:text-ink-2 disabled:opacity-30">
                     <ArrowUp className="w-4 h-4" />
@@ -502,7 +511,7 @@ export function NewBookingPage() {
                   className="w-full flex items-center gap-2 p-3 rounded-sm hover:bg-surface-2 text-left"
                 >
                   <div className="flex-1">
-                    <RoleName role="anaesthetist" name={`Dr ${a.full_name}`} />
+                    <RoleName role="anaesthetist" name={`Dr ${nameOf(a)}`} />
                     <p className="text-xs text-muted-2 mt-0.5">{a.hospitals?.join(', ') || 'No hospitals listed'}</p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-2" />

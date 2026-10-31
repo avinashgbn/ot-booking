@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth';
-import { normalisePhone } from '@/lib/utils';
+import { normalisePhone, INVALID_PHONE_MESSAGE } from '@/lib/utils';
 import { Activity, ArrowRight } from 'lucide-react';
 
 export function LoginPage() {
@@ -18,8 +18,12 @@ export function LoginPage() {
       toast.error('Enter your mobile number and 4-digit PIN');
       return;
     }
-    setLoading(true);
     const normalised = normalisePhone(phone);
+    if (!normalised) {
+      toast.error(INVALID_PHONE_MESSAGE);
+      return;
+    }
+    setLoading(true);
     const { error } = await signInWithPin(normalised, pin);
     setLoading(false);
     if (error) {

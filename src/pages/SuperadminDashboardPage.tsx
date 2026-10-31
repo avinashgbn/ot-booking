@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import type { Practice, User, SuperadminAudit, Booking } from '@/types';
 import { Activity, ArrowLeft, Building2, Users, Calendar, ExternalLink, Plus, X } from 'lucide-react';
-import { normalisePhone, formatDate, formatDateTime } from '@/lib/utils';
+import { normalisePhone, INVALID_PHONE_MESSAGE, formatDate, formatDateTime } from '@/lib/utils';
 
 export function SuperadminDashboardPage() {
   const navigate = useNavigate();
@@ -56,6 +56,7 @@ export function SuperadminDashboardPage() {
 
   const handleCreatePractice = async (name: string, adminName: string, adminPhone: string) => {
     const phone = normalisePhone(adminPhone);
+    if (!phone) { toast.error(INVALID_PHONE_MESSAGE); return; }
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
 

@@ -87,17 +87,7 @@ export function initials(name: string): string {
     .toUpperCase();
 }
 
-export function normalisePhone(phone: string): string {
-  let cleaned = phone.replace(/[\s-]/g, '');
-  if (!cleaned.startsWith('+')) {
-    if (cleaned.startsWith('65')) {
-      cleaned = '+' + cleaned;
-    } else if (cleaned.startsWith('8') || cleaned.startsWith('9')) {
-      cleaned = '+65' + cleaned;
-    }
-  }
-  return cleaned;
-}
+export { normalisePhone, INVALID_PHONE_MESSAGE } from '@/lib/phone';
 
 export function anaesthesiaLabel(pref: string): string {
   switch (pref) {

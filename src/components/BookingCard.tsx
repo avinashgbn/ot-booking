@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDate, formatTime, countdown } from '@/lib/utils';
 import { statusGroup, statusGroupStripeClass, stepOutcomeGroup, statusGroupTextClass } from '@/lib/status';
 import { RoleName, StatusBadge } from '@/components/Badges';
+import { usePracticeNames, anaesthetistName } from '@/lib/anaesthetistNames';
 import type { Booking, CascadeStep, User, Anaesthetist } from '@/types';
 import {
   Calendar, Clock, MapPin, ChevronDown, ChevronUp, Phone,
@@ -30,6 +31,9 @@ export function BookingCard({
 }: BookingCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [tick, setTick] = useState(0);
+  // Names as the booking's own practice knows them.
+  const { names } = usePracticeNames([booking.practice_id]);
+  const nameOf = (a: Anaesthetist | null | undefined) => anaesthetistName(names, a, booking.practice_id);
 
   useEffect(() => {
     const hasActive = cascadeSteps.some((s) => s.outcome === 'pending' && s.expires_at && new Date(s.expires_at) > new Date());
@@ -90,7 +94,7 @@ export function BookingCard({
                 <span className="text-muted-2">Anaesthetist</span>
                 <p className="mt-1">
                   {confirmedAnaesthetist ? (
-                    <RoleName role="anaesthetist" name={`Dr ${confirmedAnaesthetist.full_name}`} />
+                    <RoleName role="anaesthetist" name={`Dr ${nameOf(confirmedAnaesthetist)}`} />
                   ) : (
                     <span className="text-muted-2">Not confirmed</span>
                   )}
@@ -141,7 +145,7 @@ export function BookingCard({
                     <div key={step.id} className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
                         <span className="text-muted-2 w-4 figure">{step.rank}</span>
-                        <RoleName role="anaesthetist" name={`Dr ${step.anaesthetist?.full_name || 'Unknown'}`} />
+                        <RoleName role="anaesthetist" name={`Dr ${nameOf(step.anaesthetist)}`} />
                       </div>
                       <div className="text-right">
                         {step.outcome === 'accepted' && <span className={`font-medium ${statusGroupTextClass(outcomeGroup)}`}>Accepted</span>}
@@ -167,7 +171,7 @@ export function BookingCard({
             {booking.status === 'confirmed' && confirmedAnaesthetist && (
               <div className="bg-ok-bg border border-ok-line rounded-sm p-3 text-xs text-ok flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                Dr {confirmedAnaesthetist.full_name} confirmed. Confirmation sent via WhatsApp. Surgeon dashboard updated.
+                Dr {nameOf(confirmedAnaesthetist)} confirmed. Confirmation sent via WhatsApp. Surgeon dashboard updated.
               </div>
             )}
 
@@ -175,7 +179,7 @@ export function BookingCard({
               <div className="bg-warn-bg border border-warn-line rounded-sm p-3 text-xs text-warn flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                 <span>
-                  Dr {confirmedAnaesthetist.full_name} has not acknowledged the cancellation.
+                  Dr {nameOf(confirmedAnaesthetist)} has not acknowledged the cancellation.
                   No reply after 30 min. Call: {confirmedAnaesthetist.phone}
                 </span>
               </div>

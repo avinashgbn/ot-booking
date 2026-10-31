@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { SurgeonBadge, StatusBadge, RoleName } from '@/components/Badges';
 import { ReorderableList } from '@/components/ReorderableList';
 import { formatDate, formatTime, anaesthesiaLabel } from '@/lib/utils';
+import { usePracticeNames, anaesthetistName } from '@/lib/anaesthetistNames';
 import type { Booking, Practice, Anaesthetist, AnaesthetistPreference } from '@/types';
 import { Calendar, Clock, MapPin, Activity, Users, Plus, X, Search, ChevronDown, ChevronUp, LogOut } from 'lucide-react';
 
@@ -21,6 +22,10 @@ export function SurgeonPage() {
   const [showAddAnaesthetist, setShowAddAnaesthetist] = useState(false);
   const [search, setSearch] = useState('');
   const [prefsOpen, setPrefsOpen] = useState(false);
+  // A surgeon can work for several practices: their own list uses their home
+  // practice's names, and each booking uses that booking's practice's names.
+  const { names } = usePracticeNames([user?.practice_id, ...bookings.map((b) => b.practice_id)]);
+  const nameOf = (a: Anaesthetist | null | undefined, practiceId = user?.practice_id) => anaesthetistName(names, a, practiceId);
 
   const fetchBookings = useCallback(async () => {
     if (!user?.id) return;
@@ -133,7 +138,9 @@ export function SurgeonPage() {
   const filteredAnaesthetists = allAnaesthetists.filter((a) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return a.full_name.toLowerCase().includes(q) || a.hospitals?.some((h) => h.toLowerCase().includes(q));
+    return nameOf(a).toLowerCase().includes(q)
+      || a.full_name.toLowerCase().includes(q)
+      || a.hospitals?.some((h) => h.toLowerCase().includes(q));
   });
 
   const today = new Date();
@@ -220,10 +227,14 @@ export function SurgeonPage() {
                     onReorder={handleReorder}
                     getKey={(p) => p.id}
                     renderItem={(item) => (
-                      <div className="flex items-center gap-2">
+                      <div className={`flex items-center gap-2 ${item.anaesthetist?.active === false ? 'opacity-60' : ''}`}>
                         <div className="flex-1 min-w-0">
-                          <RoleName role="anaesthetist" name={`Dr ${item.anaesthetist?.full_name || 'Unknown'}`} />
-                          <p className="text-xs text-muted-2 truncate mt-0.5">{item.anaesthetist?.hospitals?.join(', ') || ''}</p>
+                          <RoleName role="anaesthetist" name={`Dr ${nameOf(item.anaesthetist)}`} />
+                          <p className="text-xs text-muted-2 truncate mt-0.5">
+                            {item.anaesthetist?.active === false
+                              ? "Archived – won't be sent requests"
+                              : item.anaesthetist?.hospitals?.join(', ') || ''}
+                          </p>
                         </div>
                         <button
                           onClick={() => handleRemove(item.id)}
@@ -266,7 +277,7 @@ export function SurgeonPage() {
                 {filteredAnaesthetists.map((a) => (
                   <button key={a.id} onClick={() => handleAdd(a)} className="w-full flex items-center gap-2 p-3 rounded-sm hover:bg-surface-2 text-left">
                     <div className="flex-1">
-                      <RoleName role="anaesthetist" name={`Dr ${a.full_name}`} />
+                      <RoleName role="anaesthetist" name={`Dr ${nameOf(a)}`} />
                       <p className="text-xs text-muted-2 mt-0.5">{a.hospitals?.join(', ') || ''}</p>
                     </div>
                     <Plus className="w-4 h-4 text-muted-2" />
@@ -289,7 +300,7 @@ export function SurgeonPage() {
         ) : (
           <div className="space-y-3 mb-8">
             {upcoming.map((b) => (
-              <CaseCard key={b.id} booking={b} />
+              <CaseCard key={b.id} booking={b} anaesthetistLabel={nameOf(b.confirmed_anaesthetist, b.practice_id)} />
             ))}
           </div>
         )}
@@ -303,7 +314,7 @@ export function SurgeonPage() {
             </div>
             <div className="space-y-3">
               {recent30.map((b) => (
-                <CaseCard key={b.id} booking={b} />
+                <CaseCard key={b.id} booking={b} anaesthetistLabel={nameOf(b.confirmed_anaesthetist, b.practice_id)} />
               ))}
             </div>
           </>
@@ -326,7 +337,7 @@ function StatCard({ label, value, accent }: { label: string; value: number; acce
   );
 }
 
-function CaseCard({ booking }: { booking: Booking }) {
+function CaseCard({ booking, anaesthetistLabel }: { booking: Booking; anaesthetistLabel: string }) {
   const confirmed = booking.status === 'confirmed' && booking.confirmed_anaesthetist;
   const cancelled = booking.status === 'cancelled';
 
@@ -349,7 +360,7 @@ function CaseCard({ booking }: { booking: Booking }) {
 
       {confirmed && (
         <div className="mt-3 bg-ok-bg border border-ok-line rounded-sm px-3 py-2 text-xs text-ok flex items-center gap-2">
-          <RoleName role="anaesthetist" name={`Dr ${booking.confirmed_anaesthetist!.full_name}`} />
+          <RoleName role="anaesthetist" name={`Dr ${anaesthetistLabel}`} />
           <span>· {booking.anaesthesia_preferences?.map(anaesthesiaLabel).join(', ') || ''}</span>
         </div>
       )}
@@ -363,7 +374,7 @@ function CaseCard({ booking }: { booking: Booking }) {
       {cancelled && booking.cancel_reason && (
         <div className="mt-3 text-xs text-crit">
           Cancelled: {booking.cancel_reason}
-          {booking.confirmed_anaesthetist && <span className="block mt-0.5">Notified: Dr {booking.confirmed_anaesthetist.full_name}</span>}
+          {booking.confirmed_anaesthetist && <span className="block mt-0.5">Notified: Dr {anaesthetistLabel}</span>}
         </div>
       )}
     </div>

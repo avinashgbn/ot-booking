@@ -7,6 +7,7 @@ import { StatusBadge, RoleName } from '@/components/Badges';
 import { formatDate, formatTime, formatDateTime, anaesthesiaLabel } from '@/lib/utils';
 import { statusGroup, statusGroupStripeClass } from '@/lib/status';
 import { startCascadeEngine } from '@/lib/cascadeEngine';
+import { usePracticeNames, anaesthetistName } from '@/lib/anaesthetistNames';
 import type { Booking, CascadeStep, WhatsAppLog, User, Anaesthetist } from '@/types';
 import {
   ArrowLeft, Calendar, Clock, MapPin, XCircle, Send, AlertTriangle, CheckCircle, RotateCw, Search, Plus, X
@@ -31,6 +32,9 @@ export function BookingDetailPage() {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleForm, setRescheduleForm] = useState({ surgery_date: '', surgery_time: '', hospital_clinic: '', ot_location: '' });
   const [rescheduling, setRescheduling] = useState(false);
+  // Names as the booking's own practice knows them.
+  const { names } = usePracticeNames([booking?.practice_id]);
+  const nameOf = (a: Pick<Anaesthetist, 'id' | 'full_name'> | null | undefined) => anaesthetistName(names, a, booking?.practice_id);
 
   const showCancel = searchParams.get('cancel') === '1';
   const showRescheduleParam = searchParams.get('reschedule') === '1';
@@ -119,6 +123,7 @@ export function BookingDetailPage() {
     !askedIds.has(a.id) &&
     !staged.some((s) => s.id === a.id) &&
     (!addSearch.trim() ||
+      nameOf(a).toLowerCase().includes(addSearch.toLowerCase()) ||
       a.full_name.toLowerCase().includes(addSearch.toLowerCase()) ||
       a.hospitals?.some((h) => h.toLowerCase().includes(addSearch.toLowerCase())))
   );
@@ -222,16 +227,17 @@ export function BookingDetailPage() {
     // Surgeon's standing preference order.
     const { data: prefs } = await supabase
       .from('anaesthetist_preferences')
-      .select('anaesthetist_id')
+      .select('anaesthetist_id, anaesthetist:anaesthetists!anaesthetist_preferences_anaesthetist_id_fkey(active)')
       .eq('surgeon_id', booking.surgeon_id)
       .order('rank');
 
     // Previously-confirmed anaesthetist first, then the rest of the preference
-    // list with that one de-duplicated out.
-    const previouslyConfirmedId = booking.confirmed_anaesthetist_id;
+    // list with that one de-duplicated out. Archived anaesthetists are skipped.
+    const previouslyConfirmedId = booking.confirmed_anaesthetist?.active === false ? null : booking.confirmed_anaesthetist_id;
     const orderedIds: string[] = [];
     if (previouslyConfirmedId) orderedIds.push(previouslyConfirmedId);
-    for (const p of prefs || []) {
+    for (const p of (prefs || []) as unknown as { anaesthetist_id: string; anaesthetist: { active: boolean } | null }[]) {
+      if (p.anaesthetist?.active === false) continue;
       if (p.anaesthetist_id !== previouslyConfirmedId) orderedIds.push(p.anaesthetist_id);
     }
 
@@ -364,7 +370,7 @@ export function BookingDetailPage() {
             <InfoRow label="Anaesthesia" value={booking.anaesthesia_preferences?.map(anaesthesiaLabel).join(', ') || '—'} />
             {booking.confirmed_anaesthetist && (
               <InfoRow label="Confirmed anaesthetist" value={
-                <RoleName role="anaesthetist" name={`Dr ${booking.confirmed_anaesthetist.full_name}`} />
+                <RoleName role="anaesthetist" name={`Dr ${nameOf(booking.confirmed_anaesthetist)}`} />
               } />
             )}
             {booking.confirmed_at && (
@@ -428,7 +434,7 @@ export function BookingDetailPage() {
                 <div className="space-y-2">
                   {[...cascadeSteps].sort((a, b) => a.rank - b.rank).map((step) => (
                     <div key={step.id} className="flex items-center justify-between text-xs border border-line rounded-sm px-3 py-2">
-                      <RoleName role="anaesthetist" name={`Dr ${step.anaesthetist?.full_name || 'Unknown'}`} />
+                      <RoleName role="anaesthetist" name={`Dr ${nameOf(step.anaesthetist)}`} />
                       <span className="text-muted capitalize">{step.outcome}</span>
                     </div>
                   ))}
@@ -452,7 +458,7 @@ export function BookingDetailPage() {
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {staged.map((a) => (
                       <span key={a.id} className="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-full text-xs bg-brand-tint text-brand">
-                        Dr {a.full_name}
+                        Dr {nameOf(a)}
                         <button type="button" onClick={() => removeStaged(a.id)} className="p-0.5 hover:text-crit">
                           <X className="w-3 h-3" />
                         </button>
@@ -474,7 +480,7 @@ export function BookingDetailPage() {
                         onClick={() => addStaged(a)}
                         className="w-full flex items-center justify-between gap-2 p-2 rounded-sm hover:bg-surface-2 text-left"
                       >
-                        <span className="text-xs text-ink">Dr {a.full_name}</span>
+                        <span className="text-xs text-ink">Dr {nameOf(a)}</span>
                         <Plus className="w-3.5 h-3.5 text-muted-2" />
                       </button>
                     ))
@@ -510,7 +516,7 @@ export function BookingDetailPage() {
                     {step.rank}
                   </div>
                   <div className="flex-1">
-                    <RoleName role="anaesthetist" name={`Dr ${step.anaesthetist?.full_name || 'Unknown'}`} />
+                    <RoleName role="anaesthetist" name={`Dr ${nameOf(step.anaesthetist)}`} />
                     <div className="text-xs text-muted-2 mt-1 space-y-0.5">
                       {step.notified_at && <p>Notified: {formatDateTime(step.notified_at)}</p>}
                       {step.expires_at && <p>Expires: {formatDateTime(step.expires_at)}</p>}
@@ -621,8 +627,18 @@ export function BookingDetailPage() {
             </div>
 
             <p className="text-xs text-muted mb-3">
-              A fresh WhatsApp request will be sent for the new details — starting with{' '}
-              {booking.confirmed_anaesthetist ? `Dr ${booking.confirmed_anaesthetist.full_name}` : 'the previously confirmed anaesthetist'}, then the rest of the surgeon's preference list. The surgeon will also be notified.
+              {booking.confirmed_anaesthetist?.active === false ? (
+                // Archived anaesthetists are skipped when rescheduling (see handleReschedule).
+                <>
+                  A fresh WhatsApp request will be sent for the new details to the surgeon's preference list.
+                  Dr {nameOf(booking.confirmed_anaesthetist)} is archived, so they won't be asked. The surgeon will also be notified.
+                </>
+              ) : (
+                <>
+                  A fresh WhatsApp request will be sent for the new details — starting with{' '}
+                  {booking.confirmed_anaesthetist ? `Dr ${nameOf(booking.confirmed_anaesthetist)}` : 'the previously confirmed anaesthetist'}, then the rest of the surgeon's preference list. The surgeon will also be notified.
+                </>
+              )}
             </p>
 
             <div className="grid grid-cols-2 gap-3 mb-3">
